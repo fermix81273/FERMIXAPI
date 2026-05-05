@@ -1,5 +1,17 @@
 # KNOWN_ISSUES — известные подводные камни
 
+## FermixCoin.dll больше не нужен на сервере (с v2.4.0)
+
+**Симптом:** после обновления до v2.4.0+ на сервере лежат два файла:
+`FermixAPI.dll` и старый `FermixCoin.dll`.
+
+**Проблема:** FermixCoin теперь встроен в FermixAPI.dll. Если старый
+`FermixCoin.dll` останется в `EXILED/Plugins/`, EXILED попытается
+загрузить его как отдельный плагин, что вызовет конфликт.
+
+**Решение:** удалить `FermixCoin.dll` (и `FermixCoin.pdb`) из
+`EXILED/Plugins/`. Оставить только `FermixAPI.dll`.
+
 ## Hint-движок и сторонние плагины
 
 **Симптом:** хинты от FermixCoin (или FermixHint в целом) показываются
@@ -36,7 +48,7 @@ respawn» — очищает инвентарь, телепортирует на
 
 **Решение:** использовать `Role.Set(role, RoleSpawnFlags.None)`.
 Этот флаг сохраняет инвентарь, позицию, хп, эффекты. Уже применено
-в `plugins/FermixCoin/Outcomes/RoleOutcomes.cs::D2`.
+в `FermixCoin/Outcomes/RoleOutcomes.cs::D2`.
 
 ## C3 — возврат из Pocket Dimension
 
@@ -52,7 +64,7 @@ respawn» — очищает инвентарь, телепортирует на
 позиции комнаты (`Room.Position`). При телепорте по позиции игрока
 (`player.Position`) offset **не нужен**.
 
-См. `plugins/FermixCoin/Outcomes/TeleportOutcomes.cs::C3` — fixed в
+См. `FermixCoin/Outcomes/TeleportOutcomes.cs::C3` — fixed в
 v2.2.1.
 
 ## Boss-роли через Role.Set без RoleSpawnFlags

@@ -5,7 +5,7 @@
 | Компонент | Версия | Где задаётся |
 | --- | --- | --- |
 | .NET SDK | 8.x (для `dotnet build`) | глобально |
-| Target framework | `net48` | `FermixAPI.csproj`, `plugins/FermixCoin/FermixCoin.csproj` |
+| Target framework | `net48` | `FermixAPI.csproj` |
 | EXILED | 9.13.3 | `refs/Exiled.*.dll`, `Plugin.cs::RequiredExiledVersion` |
 | LabAPI | 1.1.6 | `refs/LabApi.dll`, `FermixCore.MinimumLabApiVersion` |
 | Lib.Harmony (`0Harmony.dll`) | как у EXILED 9.13.3 | `refs/0Harmony.dll` |
@@ -40,19 +40,16 @@ EXILED ровно в тот же `refs/` (см. `.github/workflows/build.yml`).
 ```bash
 # Из корня репозитория:
 dotnet build FermixAPI.csproj -c Release
-dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
 ```
 
-Результаты:
+Результат:
 
-- `bin/Release/net48/FermixAPI.dll` (~200 КБ) и `FermixAPI.pdb`.
-- `plugins/FermixCoin/bin/Release/FermixCoin.dll` (~40 КБ) и
-  `FermixCoin.pdb`.
+- `bin/Release/net48/FermixAPI.dll` (~400 КБ, включает FermixCoin) и `FermixAPI.pdb`.
 
-**Целевой результат — 0 errors, 0 warnings** в обоих проектах.
-Любые предупреждения, оставшиеся в выводе, означают регрессию и
-должны быть починены либо явно подавлены через `<NoWarn>` в csproj
-с обязательным комментарием почему.
+**Отдельного `FermixCoin.dll` больше нет** — всё в одном `FermixAPI.dll`.
+
+**Целевой результат — 0 errors.** Известные MSB3277 warnings
+про System.IO.Compression — норма (конфликт net48 ссылок).
 
 ## Линт / форматирование
 
@@ -64,30 +61,31 @@ dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
 
 GitHub Actions workflow `.github/workflows/build.yml`:
 
-1. На push в `dev` или `main` — собирает оба проекта в Release-конфиге.
+1. На push в `dev` или `main` — собирает FermixAPI.csproj в Release-конфиге.
 2. Публикует артефакты на job (для дебага).
 3. На push тега `vX.Y.Z` — дополнительно публикует GitHub Release с:
    - `FermixAPI.dll` + `FermixAPI.pdb`
-   - `FermixCoin.dll` + `FermixCoin.pdb`
-   - `FermixAPI-vX.Y.Z.zip` — всё в одном архиве + README.
+   - `FermixAPI-vX.Y.Z.zip` — всё в одном архиве.
 
-PR-проверка состоит из 4 jobs (build FermixAPI + build FermixCoin +
-analyse FermixAPI + analyse FermixCoin или их вариации, в зависимости
-от обновлений workflow).
+> **Важно:** GitHub Actions на этом репо может быть не активирован
+> (это форк, Actions нужно включить в Settings → Actions → General).
+> Если CI не срабатывает — релизы создаются вручную через
+> GitHub API с помощью токена `GITHUB_RELEASE_TOKEN`
+> (сохранён как repo-scoped secret).
 
 ## Тестирование
 
 Автоматических unit-тестов **нет**. Тестирование — **в игре**, на
 сервере пользователя. Workflow:
 
-1. Собрать локально, убедиться 0/0.
+1. Собрать локально: `dotnet build FermixAPI.csproj -c Release` → 0 errors.
 2. Запушить в `dev`.
 3. Открыть PR `dev → main`.
-4. Дождаться CI зелёным.
-5. Пользователь мерджит на GitHub.
-6. Тэгнуть `vX.Y.Z` → CI публикует Release.
-7. Пользователь скачивает DLL из Release, кладёт в EXILED/Plugins/,
-   рестартует сервер, проверяет глазами / зовёт админом монетку.
+4. Пользователь мерджит на GitHub.
+5. Подтянуть main в dev, тэгнуть `vX.Y.Z`.
+6. Создать Release на GitHub (через CI или вручную через API).
+7. Пользователь скачивает `FermixAPI.dll` из Release, кладёт в
+   `EXILED/Plugins/`, рестартует сервер, проверяет глазами.
 
 Если изменение можно проверить статически (например, регресс на
 отрисовку RichText в hint-движке), напиши минимальный smoke-test в
@@ -95,8 +93,7 @@ analyse FermixAPI + analyse FermixCoin или их вариации, в зави
 
 ## Чек-лист перед PR
 
-- [ ] `dotnet build -c Release` для FermixAPI → 0/0.
-- [ ] `dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release` → 0/0.
+- [ ] `dotnet build FermixAPI.csproj -c Release` → 0 errors.
 - [ ] В `FermixAPI.csproj` версия `<Version>` соответствует тегу,
       который собираешься поставить.
 - [ ] В `FermixCore.cs` константы `VersionMajor/Minor/Patch` тоже.

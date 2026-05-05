@@ -30,21 +30,33 @@
   `class`, внутри — регионы по теме (`#region Public API`,
   `#region Internal Types`, `#region Update Loop`, ...).
 
-## Намespace'ы
+## Namespace'ы
 
 ```
-FermixAPI                ← публичные расширения и обёртки (FermixHint и т.п.)
-FermixAPI.Core           ← FermixCore, FermixHintStack, FermixScheduler, ...
-FermixAPI.Systems        ← FermixGlow, FermixDoors, FermixRoles, ...
-FermixAPI.Commands       ← консольные / ремоут-команды
-FermixAPI.Integration    ← мосты к LabAPI, MapEditorReborn, SCPStats, ...
-FermixAPI.Utils          ← FermixLog, FermixData, FermixConfigUtils
-FermixAPI.Hints.*        ← встроенный hint-движок (бывший HintServiceMeow)
-
-FermixCoin               ← плагин-потребитель (плагин верхнего уровня)
-FermixCoin.Core          ← CoinHandler, CoinGlowController
-FermixCoin.Outcomes      ← все исходы броска монетки
+FermixAPI                    ← публичные расширения и обёртки (FermixHint и т.п.)
+FermixAPI.Core               ← FermixCore, FermixHintStack, FermixScheduler, ...
+FermixAPI.Systems            ← FermixGlow, FermixDoors, FermixRoles, ...
+FermixAPI.Commands           ← консольные / ремоут-команды
+FermixAPI.Integration        ← мосты к LabAPI, MapEditorReborn, SCPStats, ...
+FermixAPI.Utils              ← FermixLog, FermixData, FermixConfigUtils
+FermixAPI.Hints.*            ← встроенный hint-движок (бывший HintServiceMeow)
+FermixAPI.FermixCoin         ← встроенный модуль монетки (CoinManager, OutcomeRegistry, ...)
+FermixAPI.FermixCoin.Outcomes ← все исходы броска монетки
 ```
+
+### Как добавить новый встроенный модуль (плагин)
+
+С v2.4.0 все плагины встроены в `FermixAPI.dll`. Шаблон:
+
+```
+FermixAPI.<ИмяМодуля>           ← папка в корне проекта
+FermixAPI.<ИмяМодуля>.Core      ← внутренние классы
+FermixAPI.<ИмяМодуля>.Outcomes  ← если есть исходы/эффекты
+```
+
+Менеджер модуля — `static class <ИмяМодуля>Manager` с методами
+`Initialize()` / `Shutdown()`, вызываемыми из `FermixCore`.
+Конфиг модуля — свойства в общем `Config.cs` FermixAPI.
 
 ## Хинты — публичный API
 
@@ -97,7 +109,7 @@ reload плагина останутся «висящие» корутины.
 
 ## Граната, телепорт, спавн SCP
 
-См. примеры в `plugins/FermixCoin/Outcomes/*.cs`. Главные
+См. примеры в `FermixCoin/Outcomes/*.cs`. Главные
 принципы:
 
 - Спавн предметов — через `Pickup.CreateAndSpawn(...)` или

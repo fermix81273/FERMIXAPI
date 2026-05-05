@@ -16,23 +16,23 @@ description: Шаги для добавления нового исхода (Out
 
 ### 1. Определи категорию
 
-Все исходы в `plugins/FermixCoin/Outcomes/` разнесены по тематикам:
+Все исходы в `FermixCoin/Outcomes/` разнесены по тематикам:
 
 | Файл | Категории |
 | --- | --- |
-| `BasicOutcomes.cs` | A1-A4 — предметы, эффекты, HP, SCP-айтемы |
+| `ItemOutcomes.cs` | A1-A4 — предметы, эффекты, HP, SCP-айтемы |
 | `GrenadeOutcomes.cs` | B1-B6 — гранаты, SCP-018, теслы, дисраптор |
 | `TeleportOutcomes.cs` | C1-C5 — перемещение, Pocket Dimension |
 | `RoleOutcomes.cs` | D1-D6 — смена класса, зомбификация |
 | `HealthOutcomes.cs` | E1-E7 — HP, инвентарь, экипировка |
 | `LocalOutcomes.cs` | F1-F5 — blackout, двери |
-| `GroupOutcomes.cs` | G1-G3 — на других игроков |
-| `JackpotOutcomes.cs` | I1, I3-I5 — risk/reward редкие |
-| `MegaJackpotOutcome.cs` | mega-jackpot 0.01% |
+| `RoundOutcomes.cs` | G1-G3 — на других игроков / раунд |
+| `RareOutcomes.cs` | I1, I3-I5 — risk/reward редкие |
 
 Подбери файл, который тематически подходит. Если ни один не
-подходит — создай новый, например `Outcomes/EnvironmentOutcomes.cs`,
-по образцу существующих.
+подходит — создай новый, например
+`FermixCoin/Outcomes/EnvironmentOutcomes.cs`,
+по образцу существующих. Namespace: `FermixAPI.FermixCoin.Outcomes`.
 
 ### 2. Прикинь Rarity и weightMultiplier
 
@@ -52,7 +52,7 @@ Legendary        2          вау-моменты (jackpot)
 
 ### 3. Напиши Outcome
 
-Каждый исход — это `new Outcome(...)`, добавляемый в `OutcomeSink sink`.
+Каждый исход — это `new Outcome(...)`, добавляемый в `List<Outcome> sink`.
 Шаблон:
 
 ```csharp
@@ -100,11 +100,11 @@ sink.Add(new Outcome(
 ### 5. Тесты
 
 ```bash
-cd /home/ubuntu/repos/FERMIXAPI1
-dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
+cd /home/ubuntu/FERMIXAPI
+dotnet build FermixAPI.csproj -c Release
 ```
 
-Должно быть 0/0. После этого commit, push в `dev`, открой PR.
+Должно быть 0 errors. После этого commit, push в `dev`, открой PR.
 
 ### 6. Финал — попроси пользователя проверить
 
@@ -119,6 +119,6 @@ dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
 - [ ] message и comment на русском, короткие, прикольные
 - [ ] Никакого `player.ShowHint(...)` напрямую
 - [ ] Все задержки через `FermixScheduler.Delay/Repeat`
-- [ ] `dotnet build` 0/0
+- [ ] `dotnet build FermixAPI.csproj -c Release` 0 errors
 - [ ] Если эффект массовый/dangerous — добавил в `KNOWN_ISSUES.md`
       запись о возможных взаимодействиях

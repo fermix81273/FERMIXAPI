@@ -68,9 +68,6 @@ jobs:
       - name: Restore + Build (FermixAPI)
         run: dotnet build FermixAPI.csproj -c Release
 
-      - name: Restore + Build (FermixCoin plugin)
-        run: dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
-
       - name: Upload build artifact (FermixAPI)
         uses: actions/upload-artifact@v4
         with:
@@ -78,14 +75,6 @@ jobs:
           path: |
             bin/Release/net48/FermixAPI.dll
             bin/Release/net48/FermixAPI.pdb
-
-      - name: Upload build artifact (FermixCoin)
-        uses: actions/upload-artifact@v4
-        with:
-          name: FermixCoin
-          path: |
-            plugins/FermixCoin/bin/Release/FermixCoin.dll
-            plugins/FermixCoin/bin/Release/FermixCoin.pdb
 
       - name: Package release zip
         if: startsWith(github.ref, 'refs/tags/v')
@@ -95,8 +84,6 @@ jobs:
           mkdir -p "$STAGE"
           cp bin/Release/net48/FermixAPI.dll "$STAGE/"
           cp bin/Release/net48/FermixAPI.pdb "$STAGE/"
-          cp plugins/FermixCoin/bin/Release/FermixCoin.dll "$STAGE/"
-          cp plugins/FermixCoin/bin/Release/FermixCoin.pdb "$STAGE/"
           cp README.md "$STAGE/"
           [ -d examples ] && cp -r examples "$STAGE/"
           (cd artifact && zip -r "../FermixAPI-${VERSION}.zip" FermixAPI)
@@ -109,8 +96,6 @@ jobs:
           files: |
             bin/Release/net48/FermixAPI.dll
             bin/Release/net48/FermixAPI.pdb
-            plugins/FermixCoin/bin/Release/FermixCoin.dll
-            plugins/FermixCoin/bin/Release/FermixCoin.pdb
             FermixAPI-${{ github.ref_name }}.zip
           generate_release_notes: true
           draft: false
