@@ -36,9 +36,12 @@
 
 ## F
 
-- **FermixCoin** — плагин-потребитель FermixAPI. Лежит в
-  `plugins/FermixCoin/`. Реализует «монету фортуны» с ~30
-  исходами разных категорий.
+- **FermixCoin** — встроенный модуль FermixAPI (с v2.4.0). Лежит в
+  `FermixCoin/` в корне проекта, namespace `FermixAPI.FermixCoin`.
+  Реализует «монету фортуны» с ~40 исходами разных категорий.
+  Управляется через `CoinManager.Initialize()` / `Shutdown()`.
+- **CoinManager** — статический менеджер модуля FermixCoin. Заменил
+  отдельный Plugin-класс с v2.4.0. Вызывается из `FermixCore`.
 - **FermixGlow** — модуль подсветки предметов через Items API.
   Уровни интенсивности привязаны к редкости (Common 0.55,
   Uncommon 0.85, ..., Legendary 1.40). См. `Systems/FermixGlow.cs`.

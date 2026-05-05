@@ -39,6 +39,7 @@
                  │
                  ▼
        CI собирает Release с DLL
+                 (или релиз создаётся вручную через GitHub API)
                  │
                  ▼
        пользователь скачивает,
@@ -57,15 +58,14 @@ git add Core/FermixCore.cs Hints/...
 git commit -m "Краткое описание на русском"
 
 # Перед пушем — убедиться, что собирается:
-dotnet build -c Release
-dotnet build plugins/FermixCoin/FermixCoin.csproj -c Release
+dotnet build FermixAPI.csproj -c Release
 
 # Пушим dev:
 git push origin dev
 
 # Открываем PR через ИИ-инструменты (gh CLI запрещён):
-#   git_pr action=fetch_template repo=566hj/FERMIXAPI1
-#   git_pr action=create repo=566hj/FERMIXAPI1 head_branch=dev base_branch=main
+#   git_pr action=fetch_template repo=wv4kyxhrhr-code/FERMIXAPI
+#   git_pr action=create repo=wv4kyxhrhr-code/FERMIXAPI head_branch=dev base_branch=main
 ```
 
 ## После merge'а пользователем
@@ -83,6 +83,11 @@ git push origin v2.3.0
 
 CI workflow `.github/workflows/build.yml` сам соберёт DLL и
 опубликует Release при пуше тега `v*`.
+
+> Если CI не активирован, создай Release вручную:
+> 1. Собрать локально: `dotnet build FermixAPI.csproj -c Release`
+> 2. Создать Release через GitHub API (токен `GITHUB_RELEASE_TOKEN`)
+> 3. Залить `FermixAPI.dll`, `FermixAPI.pdb`, `FermixAPI-vX.Y.Z.zip`
 
 ## Правила версионирования (semver)
 
@@ -131,7 +136,7 @@ Devin Review поймал, что origin — уже валидная позиц�
 
 ## Когда **обязательно** делать PR
 
-- Любые изменения, попадающие в `.dll` (то есть всё в `FermixAPI/`,
-  `Hints/`, `plugins/`).
+- Любые изменения, попадающие в `.dll` (то есть всё в корне проекта:
+  `Core/`, `Systems/`, `Extensions/`, `Hints/`, `FermixCoin/`, и т.д.).
 - Любые изменения в `.github/workflows/`.
 - Любые изменения структуры репо (новые папки, удаление).
