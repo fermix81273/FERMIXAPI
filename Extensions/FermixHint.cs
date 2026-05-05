@@ -26,12 +26,12 @@ namespace FermixAPI
         public const string Green = "green";
         public const string Blue = "blue";
         public const string Yellow = "yellow";
-        public const string Cyan = "cyan";
-        public const string Magenta = "magenta";
+        public const string Cyan = "#00FFFF";
+        public const string Magenta = "#FF00FF";
         public const string Orange = "orange";
-        public const string Pink = "pink";
+        public const string Pink = "#FFC0CB";
         public const string Purple = "purple";
-        public const string Gray = "gray";
+        public const string Gray = "#808080";
         public const string Gold = "#FFD700";
         public const string Silver = "#C0C0C0";
         public const string Lime = "#00FF00";
