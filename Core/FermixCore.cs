@@ -139,6 +139,11 @@ namespace FermixAPI.Core
                 Systems.FermixInput.Initialize();
                 Systems.FermixGlow.Initialize();
 
+                // Адаптации сторонних плагинов под нашу архитектуру
+                Systems.FermixRemoteKeycard.Initialize();
+                Systems.FermixChat.Initialize();
+                Systems.FermixGeneratorHud.Initialize();
+
                 // Монитор TPS + сброс кулдауна воскрешения на старте раунда
                 Commands.TpsCommand.StartMonitor();
                 FermixEvents.OnRoundStart += OnRoundStartedHook;
@@ -191,6 +196,12 @@ namespace FermixAPI.Core
                 // Останавливаем стек хинтов, SSS-биндинги и подсветку
                 FermixEvents.OnRoundStart -= OnRoundStartedHook;
                 Commands.TpsCommand.StopMonitor();
+
+                // Адаптации сторонних плагинов
+                Systems.FermixGeneratorHud.Shutdown();
+                Systems.FermixChat.Shutdown();
+                Systems.FermixRemoteKeycard.Shutdown();
+
                 Systems.FermixGlow.Shutdown();
                 Systems.FermixInput.Shutdown();
                 FermixHintStack.Shutdown();

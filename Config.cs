@@ -60,5 +60,47 @@ namespace FermixAPI
 
         [Description("Задержка после старта раунда (в секундах) перед автоспавном монеток.")]
         public float CoinAutoSpawnDelay { get; set; } = 5f;
+
+        // ── FermixRemoteKeycard ─────────────────────────────────────
+
+        [Description("Разрешить открывать двери/шкафы/генераторы, когда подходящая карта лежит в инвентаре, но не в руках.")]
+        public bool RemoteKeycardEnabled { get; set; } = true;
+
+        [Description("Применять «удалённую» карту к дверям.")]
+        public bool RemoteKeycardWorksOnDoors { get; set; } = true;
+
+        [Description("Применять «удалённую» карту к шкафчикам.")]
+        public bool RemoteKeycardWorksOnLockers { get; set; } = true;
+
+        [Description("Применять «удалённую» карту к генераторам (баланс — может быть слишком сильно).")]
+        public bool RemoteKeycardWorksOnGenerators { get; set; } = false;
+
+        [Description("Показывать игроку короткий хинт, какая карта была применена.")]
+        public bool RemoteKeycardShowHint { get; set; } = true;
+
+        // ── FermixChat ──────────────────────────────────────────────
+
+        [Description("Включить глобальный текстовый чат через консольную команду .say (псевдоним .s).")]
+        public bool ChatEnabled { get; set; } = true;
+
+        [Description("Сколько последних сообщений показывать в окне чата.")]
+        public int ChatHistorySize { get; set; } = 6;
+
+        [Description("Сколько секунд каждое сообщение остаётся в окне чата.")]
+        public float ChatMessageLifetime { get; set; } = 12f;
+
+        [Description("Минимальный интервал между сообщениями одного игрока (анти-флуд, секунды).")]
+        public float ChatCooldown { get; set; } = 3f;
+
+        [Description("Максимальная длина одного сообщения (символов).")]
+        public int ChatMaxLength { get; set; } = 160;
+
+        // ── FermixGeneratorHud ──────────────────────────────────────
+
+        [Description("Показывать SCP-командe HUD с активирующимися генераторами и таймером до окончательного запуска.")]
+        public bool GeneratorHudEnabled { get; set; } = true;
+
+        [Description("Интервал обновления HUD генераторов (секунды).")]
+        public float GeneratorHudUpdateInterval { get; set; } = 1f;
     }
 }
