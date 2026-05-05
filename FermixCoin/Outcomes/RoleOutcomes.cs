@@ -40,7 +40,6 @@ namespace FermixAPI.FermixCoin.Outcomes
             RoleTypeId.ChaosRifleman,
             RoleTypeId.ChaosRepressor,
             RoleTypeId.ChaosMarauder,
-            RoleTypeId.Tutorial,
             RoleTypeId.Scp0492,
         };
 
@@ -140,7 +139,7 @@ namespace FermixAPI.FermixCoin.Outcomes
                 name: "Случайная роль",
                 rarity: Rarity.Epic,
                 message: "Тебя забросило в случайную роль!",
-                comment: "Лотерея жизни. Зомби, учёный, MTF... да хоть туториал.",
+                comment: "Лотерея жизни. Зомби, учёный, MTF, Хаос... что-то одно.",
                 action: p =>
                 {
                     var role = RandomRolePool[UnityEngine.Random.Range(0, RandomRolePool.Length)];
