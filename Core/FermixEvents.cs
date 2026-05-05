@@ -115,6 +115,9 @@ namespace FermixAPI.Core
         /// <summary>Игрок закрывает генератор.</summary>
         public static event Action<ClosingGeneratorEventArgs> OnCloseGenerator;
 
+        /// <summary>Игрок разблокирует генератор (предварительная проверка карты).</summary>
+        public static event Action<UnlockingGeneratorEventArgs> OnUnlockGenerator;
+
         #endregion
 
         #region Door & Locker Events - Двери и Шкафчики
@@ -356,6 +359,7 @@ namespace FermixAPI.Core
             Sub(Handlers.Player.StoppingGenerator,            ev => OnStopGenerator?.Invoke(ev));
             Sub(Handlers.Player.OpeningGenerator,             ev => OnOpenGenerator?.Invoke(ev));
             Sub(Handlers.Player.ClosingGenerator,             ev => OnCloseGenerator?.Invoke(ev));
+            Sub(Handlers.Player.UnlockingGenerator,           ev => OnUnlockGenerator?.Invoke(ev));
 
             // Door & Locker Events
             Sub(Handlers.Player.InteractingDoor,     ev => OnDoorInteract?.Invoke(ev));
