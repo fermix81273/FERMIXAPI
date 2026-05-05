@@ -21,7 +21,7 @@ namespace FermixAPI.Core
         #region Version Info
 
         public const int VersionMajor = 2;
-        public const int VersionMinor = 4;
+        public const int VersionMinor = 5;
         public const int VersionPatch = 0;
         public const string VersionSuffix = "release";
 
