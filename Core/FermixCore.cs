@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Exiled.API.Features;
 using Exiled.API.Interfaces;
 using MEC;
+using FermixAPI.FermixCoin;
 using Handlers = Exiled.Events.Handlers;
 
 // Alias to avoid ambiguity
@@ -20,8 +21,8 @@ namespace FermixAPI.Core
         #region Version Info
 
         public const int VersionMajor = 2;
-        public const int VersionMinor = 3;
-        public const int VersionPatch = 1;
+        public const int VersionMinor = 4;
+        public const int VersionPatch = 0;
         public const string VersionSuffix = "release";
 
         /// <summary>
@@ -142,6 +143,9 @@ namespace FermixAPI.Core
                 Commands.TpsCommand.StartMonitor();
                 FermixEvents.OnRoundStart += OnRoundStartedHook;
 
+                // Инициализация встроенного модуля FermixCoin
+                CoinManager.Initialize();
+
                 IsInitialized = true;
 
                 FermixLog.Info($"Ядро FermixAPI v{Version} успешно инициализировано.");
@@ -194,6 +198,9 @@ namespace FermixAPI.Core
                 // Очищаем LabAPI-регистрации
                 Integration.LabApiCommands.Clear();
                 Integration.LabApiEvents.ClearAll();
+
+                // Выключаем встроенный модуль FermixCoin
+                CoinManager.Shutdown();
 
                 // Останавливаем планировщик
                 FermixScheduler.Shutdown();

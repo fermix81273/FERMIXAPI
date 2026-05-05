@@ -3,12 +3,11 @@ using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Features;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория A: «обычные» — предмет / эффект / лечение / SCP-предмет.</summary>
     public static class ItemOutcomes
     {
-        // Базовый пул нейтральных предметов (то, что часто хочется получить).
         private static readonly ItemType[] BasicItemPool =
         {
             ItemType.Adrenaline,
@@ -23,7 +22,6 @@ namespace FermixCoin.Outcomes
             ItemType.Ammo9x19,
         };
 
-        // Эффекты для A2 (короткие, ничего смертельного).
         private static readonly (EffectType type, float duration, byte intensity, string label)[] BasicEffectPool =
         {
             (EffectType.MovementBoost, 15f, 10, "ускорение"),
@@ -41,7 +39,6 @@ namespace FermixCoin.Outcomes
             (EffectType.RainbowTaste, 12f, 1, "радужный вкус"),
         };
 
-        // SCP-предметы для A4 (редковато, поэтому редкость Uncommon).
         private static readonly ItemType[] ScpItemPool =
         {
             ItemType.SCP500,
@@ -106,10 +103,9 @@ namespace FermixCoin.Outcomes
                 }));
         }
 
-        // Утилитарный метод — заметка снизу хинта.
         private static void Hint(Player p, string text)
         {
-            FermixAPI.FermixHint.SendColored(p, $"<size=80%><color=#aaaaaa>{text}</color></size>", "#aaaaaa", 4f);
+            FermixHint.SendColored(p, $"<size=80%><color=#aaaaaa>{text}</color></size>", "#aaaaaa", 4f);
         }
     }
 }

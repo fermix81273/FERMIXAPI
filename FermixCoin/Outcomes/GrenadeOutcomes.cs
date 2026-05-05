@@ -7,7 +7,7 @@ using Exiled.API.Features.Pickups;
 using FermixAPI.Core;
 using UnityEngine;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория B: гранаты, бабахи и шары.</summary>
     public static class GrenadeOutcomes
@@ -77,7 +77,6 @@ namespace FermixCoin.Outcomes
                 weightMultiplier: 0.15f,
                 action: p =>
                 {
-                    // Дать игроку сразу заряженный Particle Disruptor (10 сек).
                     var disruptor = p.AddItem(ItemType.ParticleDisruptor);
                     if (disruptor != null)
                     {
@@ -97,8 +96,6 @@ namespace FermixCoin.Outcomes
                 comment: "Если ты возле двери — лучше отойди, я не уверен в радиусе.",
                 action: p =>
                 {
-                    // Триггер ближайшего тесла-гейта. Используем полное имя,
-                    // потому что в Assembly-CSharp есть глобальный класс TeslaGate.
                     var nearest = Exiled.API.Features.TeslaGate.List
                         .OrderBy(t => Vector3.Distance(t.Position, p.Position))
                         .FirstOrDefault();

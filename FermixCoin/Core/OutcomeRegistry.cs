@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
-using FermixCoin.Outcomes;
+using FermixAPI.FermixCoin.Outcomes;
 
-namespace FermixCoin
+namespace FermixAPI.FermixCoin
 {
     /// <summary>
-    /// Реестр всех зарегистрированных исходов. Заполняется при <see cref="Plugin.OnEnabled"/>.
+    /// Реестр всех зарегистрированных исходов. Заполняется при инициализации CoinManager.
     /// </summary>
     public static class OutcomeRegistry
     {

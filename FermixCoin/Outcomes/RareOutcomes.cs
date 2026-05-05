@@ -3,12 +3,11 @@ using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Extensions;
 using Exiled.API.Features;
-using FermixAPI;
 using FermixAPI.Core;
 using FermixAPI.Systems;
 using PlayerRoles;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория I: редкие исходы (без I2 — мгновенной смерти).</summary>
     public static class RareOutcomes
@@ -64,7 +63,6 @@ namespace FermixCoin.Outcomes
                     if (dead.Count == 0)
                         return;
 
-                    // Ближайшего по позиции последнего гибели нет, поэтому просто рандом.
                     var target = dead[UnityEngine.Random.Range(0, dead.Count)];
 
                     var resurrectAs = mySide == Side.Mtf
