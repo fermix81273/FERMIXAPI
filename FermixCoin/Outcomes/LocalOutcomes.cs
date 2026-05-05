@@ -8,7 +8,7 @@ using Exiled.API.Features.Pickups;
 using FermixAPI.Systems;
 using UnityEngine;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория F: локальные эффекты вокруг игрока.</summary>
     public static class LocalOutcomes
@@ -55,9 +55,6 @@ namespace FermixCoin.Outcomes
                         door.IsOpen = true;
                     }
                 }));
-
-            // F4 (Workbench под ногами) удалён по запросу: слишком ломает экономику
-            // станций прокачки, плюс PrefabHelper-структуры не убираются между раундами.
 
             sink.Add(new Outcome(
                 id: "F5",

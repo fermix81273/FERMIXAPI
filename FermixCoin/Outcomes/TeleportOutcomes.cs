@@ -5,19 +5,13 @@ using Exiled.API.Features;
 using FermixAPI.Core;
 using UnityEngine;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория C: телепортация. Имбовые варианты — с пониженным шансом.</summary>
     public static class TeleportOutcomes
     {
-        /// <summary>
-        /// Whitelist комнат, в которые разрешено выкидывать игрока случайным
-        /// телепортом (C1). Список взят из RA → Door Management — это все
-        /// «полезные» точки на карте, без узких коридоров и закутков.
-        /// </summary>
         private static readonly RoomType[] AllowedRooms =
         {
-            // SCP-комнаты (из 049_ARMORY/079_*/096/106_*/173_*/939_CRYO/HID_*)
             RoomType.Hcz049,
             RoomType.Hcz079,
             RoomType.Hcz096,
@@ -25,30 +19,24 @@ namespace FermixCoin.Outcomes
             RoomType.Hcz939,
             RoomType.HczHid,
             RoomType.Lcz173,
-            // Тестовые / лаб-комнаты (HCZ_127_LAB, 914)
             RoomType.Hcz127,
             RoomType.Lcz914,
             RoomType.Lcz330,
-            // Армори (HCZ_ARMORY, LCZ_ARMORY)
             RoomType.HczArmory,
             RoomType.LczArmory,
-            // Чекпоинты (CHECKPOINT_EZ_HCZ_A, CHECKPOINT_LCZ_A, CHECKPOINT_LCZ_B)
             RoomType.HczEzCheckpointA,
             RoomType.HczEzCheckpointB,
             RoomType.LczCheckpointA,
             RoomType.LczCheckpointB,
-            // Прочее в EZ (LCZ_WC, INTERCOM, GATE_A/B, ESCAPE_*)
             RoomType.LczToilets,
             RoomType.EzIntercom,
             RoomType.EzGateA,
             RoomType.EzGateB,
             RoomType.EzShelter,
-            // Поверхность (SURFACE_GATE) и шахта Альфы (SURFACE_NUKE)
             RoomType.Surface,
             RoomType.HczNuke,
         };
 
-        /// <summary>Подъём над полом, чтобы игрок не клипал внутрь и не падал.</summary>
         private const float SafeUpOffset = 1.0f;
 
         public static void Register(List<Outcome> sink)
@@ -104,9 +92,6 @@ namespace FermixCoin.Outcomes
                     {
                         if (p == null || !p.IsConnected || !p.IsAlive)
                             return;
-                        // Возвращаем туда, где он был на момент броска. origin —
-                        // это уже валидная позиция игрока (ноги), поэтому никакой
-                        // SafeUpOffset не добавляем (иначе 1м падения сверху).
                         p.Teleport(origin);
                     });
                 }));
@@ -143,11 +128,6 @@ namespace FermixCoin.Outcomes
                 }));
         }
 
-        /// <summary>
-        /// Возвращает случайную комнату из whitelist'а, которая реально
-        /// существует на текущей карте (некоторые типы могут отсутствовать
-        /// в зависимости от seed'а / DLC). Если не нашли — fallback на любую.
-        /// </summary>
         private static Room PickAllowedRoom()
         {
             var pool = new List<Room>();

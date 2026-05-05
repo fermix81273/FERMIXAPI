@@ -1,8 +1,8 @@
-namespace FermixCoin
+namespace FermixAPI.FermixCoin
 {
     /// <summary>
     /// Состояние одной монетки на сервере. Хранится в
-    /// <see cref="Plugin.CoinStates"/> по серийнику.
+    /// <see cref="CoinManager.CoinStates"/> по серийнику.
     /// </summary>
     public sealed class CoinState
     {

@@ -1,4 +1,4 @@
-namespace FermixCoin
+namespace FermixAPI.FermixCoin
 {
     /// <summary>
     /// Редкость исхода. Используется внутри для группировки и для подсветки

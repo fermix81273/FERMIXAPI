@@ -3,10 +3,9 @@ using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Extensions;
 using Exiled.API.Features;
-using FermixAPI;
 using PlayerRoles;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория G: эффекты на других игроков и зону.</summary>
     public static class RoundOutcomes
@@ -44,7 +43,6 @@ namespace FermixCoin.Outcomes
                     if (mySide == Side.None || mySide == Side.Scp)
                         return;
 
-                    // Кандидаты — мёртвые игроки той же стороны (исходно).
                     var candidates = Player.List
                         .Where(x => x != p && !x.IsAlive && x.IsConnected)
                         .ToList();
@@ -57,7 +55,6 @@ namespace FermixCoin.Outcomes
 
                     var target = candidates[UnityEngine.Random.Range(0, candidates.Count)];
 
-                    // Поднимаем со стороны игрока, бросавшего монетку.
                     RoleTypeId resurrectAs = mySide == Side.Mtf
                         ? RoleTypeId.NtfPrivate
                         : mySide == Side.ChaosInsurgency

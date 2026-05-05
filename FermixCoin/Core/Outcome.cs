@@ -1,7 +1,7 @@
 using System;
 using Exiled.API.Features;
 
-namespace FermixCoin
+namespace FermixAPI.FermixCoin
 {
     /// <summary>
     /// Один из ~40 возможных исходов подкидывания монетки.

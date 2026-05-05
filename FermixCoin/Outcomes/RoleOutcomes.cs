@@ -3,11 +3,10 @@ using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Extensions;
 using Exiled.API.Features;
-using FermixAPI;
 using FermixAPI.Core;
 using PlayerRoles;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория D: смены ролей. Превращения в MTF/Chaos — редкие.</summary>
     public static class RoleOutcomes
@@ -28,8 +27,6 @@ namespace FermixCoin.Outcomes
             RoleTypeId.ChaosMarauder,
         };
 
-        // D6: «случайная роль вообще». SCP-роли и зрители не включены, чтобы
-        // не превращать игрока в SCP-079/Spectator/None.
         private static readonly RoleTypeId[] RandomRolePool =
         {
             RoleTypeId.ClassD,
@@ -71,9 +68,6 @@ namespace FermixCoin.Outcomes
                     var oldRole = p.Role.Type;
                     var oldHealth = p.Health;
 
-                    // RoleSpawnFlags.None = НЕ ассайнить дефолтный инвентарь и НЕ
-                    // телепортировать на спавн новой роли. Инвентарь и позиция
-                    // сохраняются.
                     p.Role.Set(RoleTypeId.Tutorial, RoleSpawnFlags.None);
                     p.Health = oldHealth;
 
@@ -83,7 +77,6 @@ namespace FermixCoin.Outcomes
                             return;
                         if (p.Role.Type != RoleTypeId.Tutorial)
                             return;
-                        // Возвращаем прежнюю роль с тем же флагом — инвентарь снова не трогается.
                         p.Role.Set(oldRole, RoleSpawnFlags.None);
                         p.Health = oldHealth;
                         FermixHint.SendColored(p, "Возвращаемся в реальность...", FermixHint.Cyan, 4f);
@@ -133,7 +126,6 @@ namespace FermixCoin.Outcomes
                         target = MtfRoles[UnityEngine.Random.Range(0, MtfRoles.Length)];
                     else
                     {
-                        // Не MTF и не Chaos — выбираем случайный из двух.
                         var pool = UnityEngine.Random.value < 0.5f ? MtfRoles : ChaosRoles;
                         target = pool[UnityEngine.Random.Range(0, pool.Length)];
                     }

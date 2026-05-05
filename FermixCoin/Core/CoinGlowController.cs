@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+using FermixAPI.Core;
 using FermixAPI.Systems;
 
-namespace FermixCoin
+namespace FermixAPI.FermixCoin
 {
     /// <summary>
     /// Регистрирует в FermixGlow по одной подсветке на редкость. Каждая подсветка
@@ -15,21 +16,14 @@ namespace FermixCoin
 
         public static void Register()
         {
-            if (!Plugin.Singleton.Config.RarityGlowEnabled)
+            if (!FermixCore.Config.RarityGlowEnabled)
                 return;
 
-            // Common / Uncommon / Rare / Epic / Legendary — статичная подсветка
-            // соответствующего цвета. Common пониженной интенсивности —
-            // жёлтый сильно слепит и «съедает» силуэт монетки на полу.
             RegisterRarityGlow(Rarity.Common,    RarityColors.CommonHex,    intensity: 0.55f);
             RegisterRarityGlow(Rarity.Uncommon,  RarityColors.UncommonHex,  intensity: 0.85f);
             RegisterRarityGlow(Rarity.Rare,      RarityColors.RareHex,      intensity: 1.00f);
             RegisterRarityGlow(Rarity.Epic,      RarityColors.EpicHex,      intensity: 1.20f);
             RegisterRarityGlow(Rarity.Legendary, RarityColors.LegendaryHex, intensity: 1.40f);
-
-            // Mythic-радуга специально не регистрируем: монетка с заранее свёрстанным
-            // мифическим исходом не существует в обычном пуле — Mythic выпадает
-            // только через отдельный mega-jackpot roll, который ВНЕ NextOutcome.
         }
 
         public static void Unregister()
@@ -46,9 +40,7 @@ namespace FermixCoin
                 id: id,
                 itemCheck: serial =>
                 {
-                    if (Plugin.Singleton == null)
-                        return false;
-                    if (!Plugin.Singleton.CoinStates.TryGetValue(serial, out var state))
+                    if (!CoinManager.CoinStates.TryGetValue(serial, out var state))
                         return false;
                     return state?.NextOutcome != null && state.NextOutcome.Rarity == rarity;
                 },

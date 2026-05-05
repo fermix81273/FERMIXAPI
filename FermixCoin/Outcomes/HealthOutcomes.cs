@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Features;
-using FermixAPI;
 
-namespace FermixCoin.Outcomes
+namespace FermixAPI.FermixCoin.Outcomes
 {
     /// <summary>Категория E: здоровье / экипировка.</summary>
     public static class HealthOutcomes
