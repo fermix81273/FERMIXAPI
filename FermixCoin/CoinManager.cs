@@ -25,6 +25,7 @@ namespace FermixAPI.FermixCoin
 
             OutcomeRegistry.Initialize();
             CoinGlowController.Register();
+            CoinSpawner.Initialize();
 
             _handler = new CoinHandler();
             PlayerEvents.FlippingCoin += _handler.OnFlippingCoin;
@@ -44,6 +45,7 @@ namespace FermixAPI.FermixCoin
                 _handler = null;
             }
 
+            CoinSpawner.Shutdown();
             CoinGlowController.Unregister();
             CoinStates.Clear();
         }

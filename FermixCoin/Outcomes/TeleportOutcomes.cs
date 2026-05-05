@@ -109,23 +109,6 @@ namespace FermixAPI.FermixCoin.Outcomes
                     if (surface != null)
                         p.Teleport(surface.Position + Vector3.up * SafeUpOffset);
                 }));
-
-            sink.Add(new Outcome(
-                id: "C5",
-                name: "Толчок",
-                rarity: Rarity.Common,
-                message: "Тебя пнули в случайном направлении!",
-                comment: "Спасибо монетке за бесплатное движение.",
-                action: p =>
-                {
-                    var dir = new Vector3(
-                        UnityEngine.Random.Range(-1f, 1f),
-                        0.3f,
-                        UnityEngine.Random.Range(-1f, 1f)).normalized;
-
-                    p.Teleport(p.Position + dir * 4f + Vector3.up * SafeUpOffset);
-                    p.EnableEffect(EffectType.Concussed, 1, 2f);
-                }));
         }
 
         private static Room PickAllowedRoom()

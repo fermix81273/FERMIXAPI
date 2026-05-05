@@ -51,5 +51,14 @@ namespace FermixAPI
 
         [Description("Глобальный broadcast при срабатывании мега-джекпота.")]
         public bool BroadcastMegaJackpot { get; set; } = true;
+
+        [Description("Автоспавн монеток в случайных комнатах комплекса после старта раунда.")]
+        public bool CoinAutoSpawnEnabled { get; set; } = true;
+
+        [Description("Сколько монеток рассыпать по комплексу при автоспавне.")]
+        public int CoinAutoSpawnCount { get; set; } = 8;
+
+        [Description("Задержка после старта раунда (в секундах) перед автоспавном монеток.")]
+        public float CoinAutoSpawnDelay { get; set; } = 5f;
     }
 }
