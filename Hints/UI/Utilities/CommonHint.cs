@@ -133,7 +133,7 @@ namespace FermixAPI.Hints.UI.Utilities
         /// </summary>
         /// <param name="itemName">The name of the item to display.</param>
         /// <param name="time">The duration in seconds to show the hint.</param>
-        public void ShowItemHint(string itemName, float time) => ShowItemHint(itemName, [], time);
+        public void ShowItemHint(string itemName, float time) => ShowItemHint(itemName, Array.Empty<string>(), time);
 
         /// <summary>
         /// Displays an item hint with a name and a single description line, using the configured display time.
@@ -194,7 +194,7 @@ namespace FermixAPI.Hints.UI.Utilities
         /// </summary>
         /// <param name="roomName">The name of the room to display.</param>
         /// <param name="time">The duration in seconds to show the hint.</param>
-        public void ShowMapHint(string roomName, float time) => ShowMapHint(roomName, [], time);
+        public void ShowMapHint(string roomName, float time) => ShowMapHint(roomName, Array.Empty<string>(), time);
 
         /// <summary>
         /// Displays a map hint with a room name and a single description line, using the configured display time.
@@ -257,7 +257,7 @@ namespace FermixAPI.Hints.UI.Utilities
         /// </summary>
         /// <param name="roleName">The name of the role to display.</param>
         /// <param name="time">The duration in seconds to show the hint.</param>
-        public void ShowRoleHint(string roleName, float time) => ShowRoleHint(roleName, [], time);
+        public void ShowRoleHint(string roleName, float time) => ShowRoleHint(roleName, Array.Empty<string>(), time);
 
         /// <summary>
         /// Displays a role hint with a role name and a single description line, using the configured display time.
