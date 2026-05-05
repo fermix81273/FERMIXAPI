@@ -102,5 +102,35 @@ namespace FermixAPI
 
         [Description("Интервал обновления HUD генераторов (секунды).")]
         public float GeneratorHudUpdateInterval { get; set; } = 1f;
+
+        // ── FermixScramble (SCP-1344 как глушитель 096) ─────────────
+
+        [Description("Включить SCP-1344 как глушитель триггера SCP-096 (взгляд на лицо не делает целью, если предмет в инвентаре).")]
+        public bool ScrambleEnabled { get; set; } = true;
+
+        [Description("Сколько SCP-1344 рассыпать по комплексу при старте раунда.")]
+        public int ScrambleSpawnCount { get; set; } = 2;
+
+        [Description("Задержка после старта раунда перед спавном SCP-1344 (секунды).")]
+        public float ScrambleSpawnDelay { get; set; } = 4f;
+
+        // ── FermixCallvote ──────────────────────────────────────────
+
+        [Description("Включить голосования игроков (.cv kick/restart/ask + .vote yes/no).")]
+        public bool CallvoteEnabled { get; set; } = true;
+
+        [Description("Длительность одного голосования (секунды).")]
+        public float CallvoteDuration { get; set; } = 30f;
+
+        [Description("Минимальный интервал между голосованиями (секунды).")]
+        public float CallvoteCooldown { get; set; } = 60f;
+
+        // ── FermixScp106Plus ────────────────────────────────────────
+
+        [Description("Включить расширения SCP-106: .106 stalk и .106 tp <комната>.")]
+        public bool Scp106PlusEnabled { get; set; } = true;
+
+        [Description("Стоимость Vigor для телепорта 106 в выбранную комнату.")]
+        public float Scp106PlusVigorCost { get; set; } = 0.3f;
     }
 }
