@@ -130,7 +130,7 @@ namespace FermixAPI.Core
                 sb.Append(text);
 
                 if (DisplaySettings.ShowRepeatCounter && RepeatCount > 1)
-                    sb.Append($" <color=grey>[x{RepeatCount}]</color>");
+                    sb.Append($" <color=#808080>[x{RepeatCount}]</color>");
 
                 if (DisplaySettings.ShowTimeRemaining && !IsPersistent && TimeRemaining > 0f)
                     sb.Append($" <size=18>({TimeRemaining:F0}s)</size>");
