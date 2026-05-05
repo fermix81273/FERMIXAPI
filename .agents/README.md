@@ -30,6 +30,10 @@ FermixAPI вместо текущего ассистента (Devin).
      перетянуть свежую версию HintServiceMeow в `Hints/`.
    - [`release-checklist.md`](SKILLS/release-checklist.md) — как
      выпустить новую версию (тэг + Release).
+8. [`PLUGIN_ADAPTATIONS.md`](PLUGIN_ADAPTATIONS.md) — roadmap по
+   адаптации сторонних SCP:SL плагинов (G.O.C., RemoteKeycard,
+   Callvote, BetterScp106, TextChatMeow и др.) в наш единый
+   `FermixAPI.dll`. Перед началом работы над любым из них — прочесть.
 
 ## Главное правило
 
@@ -58,8 +62,10 @@ FermixAPI вместо текущего ассистента (Devin).
 
 - Перед коммитом: `dotnet build FermixAPI.csproj -c Release`.
   Должно быть **0 errors**.
-- CI может не работать (GitHub Actions не активирован на форке).
-  В этом случае локальная сборка — достаточное подтверждение.
+- GitHub Actions включён на форке — после push в `dev` / создания PR
+  жди CI (`build` job) и не помечай задачу выполненной до зелёного
+  чекмарка. Если работаешь без локального билда (нет SCP:SL DLL'ок) —
+  CI обязателен.
 - При добавлении хинтов / сообщений игрокам — писать через
   `FermixHint.Send` (или подсемейство), а не напрямую `player.ShowHint`.
 - При работе с задержками — использовать `FermixScheduler.Delay`,
