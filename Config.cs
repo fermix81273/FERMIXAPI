@@ -133,6 +133,9 @@ namespace FermixAPI
         [Description("Стоимость Vigor для телепорта 106 в выбранную комнату.")]
         public float Scp106PlusVigorCost { get; set; } = 0.3f;
 
+        [Description("Включить SSS-хоткеи для 106: Q — toggle stalk, F — портал к ближайшему человеку.")]
+        public bool Scp106BindingsEnabled { get; set; } = true;
+
         // ── FermixGoc (Global Occult Coalition) ─────────────────────
 
         [Description("Включить G.O.C. — отдельный отряд, враждебный всем (MTF, Chaos, SCP).")]
