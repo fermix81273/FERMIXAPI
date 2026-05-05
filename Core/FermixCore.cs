@@ -145,6 +145,7 @@ namespace FermixAPI.Core
                 Systems.FermixGeneratorHud.Initialize();
                 Systems.FermixScramble.Initialize();
                 Systems.FermixCallvote.Initialize();
+                Systems.FermixGoc.Initialize();
 
                 // Монитор TPS + сброс кулдауна воскрешения на старте раунда
                 Commands.TpsCommand.StartMonitor();
@@ -200,6 +201,7 @@ namespace FermixAPI.Core
                 Commands.TpsCommand.StopMonitor();
 
                 // Адаптации сторонних плагинов
+                Systems.FermixGoc.Shutdown();
                 Systems.FermixCallvote.Shutdown();
                 Systems.FermixScramble.Shutdown();
                 Systems.FermixGeneratorHud.Shutdown();
