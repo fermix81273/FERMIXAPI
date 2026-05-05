@@ -132,5 +132,13 @@ namespace FermixAPI
 
         [Description("Стоимость Vigor для телепорта 106 в выбранную комнату.")]
         public float Scp106PlusVigorCost { get; set; } = 0.3f;
+
+        // ── FermixGoc (Global Occult Coalition) ─────────────────────
+
+        [Description("Включить G.O.C. — отдельный отряд, враждебный всем (MTF, Chaos, SCP).")]
+        public bool GocEnabled { get; set; } = true;
+
+        [Description("Шанс (0..1) того, что прибывшая волна MTF превратится в G.O.C.")]
+        public float GocWaveChance { get; set; } = 0.1f;
     }
 }

@@ -62,18 +62,26 @@ SCP:SL плагинов в `FermixAPI.dll`. Каждый пункт — отде
   Foundation одновременно. README у автора почти пустой («Put .dll
   into Exiled --> Plugins folder») — поведение придётся восстанавливать
   из исходников релиза.
-- **TODO для адаптации:**
-  - [ ] Скачать последний релиз и разобрать `IL`-код / DLL Decompile
-        (`ILSpy` / `dnSpy`) — у автора нет публичного исходника на default
-        ветке.
-  - [ ] Создать `Systems/FermixGoc/` (роль, спавн, оружие, форма).
-  - [ ] Решить, использовать ли `CustomRoles` API или же подменять
-        `RoleTypeId.NtfPrivate` с переименованием через `DisplayName`.
-  - [ ] Спавн-волна — через `Respawn.AdvanceTimer` или собственный
-        тип Wave в LabAPI 1.1.6 (если есть).
-  - [ ] Хинты-уведомления о приходе волны → `FermixHint.SendToAll`,
-        не `Map.Broadcast`.
-  - [ ] SSS: бинд для возможных способностей (не уверен, что они есть).
+- **TODO для адаптации (PR D, выполнено):**
+  - [x] Поведение восстановлено по описанию: отряд враждебен MTF,
+        Chaos и SCP одновременно. Без декомпила DLL — реализован MVP.
+  - [x] `Systems/FermixGoc.cs` — статический модуль, трекает участников
+        по `UserId` (HashSet). На спавне — стандартный `NtfSergeant`
+        (форма/анимации MTF), но логика hostility через override
+        `Hurting` события: GOC↔MTF разрешён.
+  - [x] Спавн-волна: подписка на `RespawnedTeam`. С шансом
+        `GocWaveChance` (10% по умолчанию) ВСЯ прибывшая MTF-волна
+        конвертируется в G.O.C.
+  - [x] Команда `goc` (RA): `goc spawn <ник>`, `goc unmark <ник>`,
+        `goc list`, `goc wave` (всех живых MTF — в G.O.C.).
+  - [x] Хинт-уведомление о приходе волны → `FermixHint.Send` всем
+        (без `Map.Broadcast`).
+  - [x] CustomInfo `<color=#ffd24a>G.O.C.</color>` над ником.
+  - [x] Loadout: GunE11SR, GunCOM18, Medkit, Adrenaline,
+        KeycardMTFCaptain, GrenadeFlash.
+  - [ ] (опционально) SSS-биндинги — не подключал, способностей нет.
+  - [ ] (опционально) Своя цветовая палитра формы / спецзвук — требует
+        ProjectMER, отложено.
 
 ### 2. Project SCRAMBLE — `MS-crew/ProjectSCRAMBLE`
 
