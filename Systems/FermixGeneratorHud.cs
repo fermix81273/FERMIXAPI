@@ -94,7 +94,7 @@ namespace FermixAPI.Systems
                 if (gen == null) continue;
                 if (!gen.IsActivating || gen.IsEngaged) continue;
 
-                int remaining = Math.Max(0, (int)Math.Round(gen.CurrentTime));
+                int remaining = Math.Max(0, (int)Math.Round((double)gen.CurrentTime));
                 string color = ColorForRemaining(remaining);
                 string roomName = LocalizeRoom(gen.Room?.Type ?? RoomType.Unknown);
                 lines.Add($"<size=20><color={color}>GEN {roomName}: {remaining}с</color></size>");
