@@ -170,11 +170,14 @@ namespace FermixAPI
         [Description("Включить кастомные классы для отрядов NTF и Chaos (Командир/Медик/Джаггернаут/Стрелок-Подрывник). G.O.C.-ранги тоже получают пассивки через эту систему.")]
         public bool SquadClassesEnabled { get; set; } = true;
 
-        [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждую секунду.")]
+        [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждый интервал.")]
         public float SquadClassesMedicRadius { get; set; } = 6f;
 
-        [Description("Сколько HP в секунду восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена. Дефолт 2 HP/с — портировано из sosal-плагина (MTFMedic.HealAmount).")]
+        [Description("Сколько HP за тик восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена. Дефолт 2 HP — портировано из sosal-плагина (MTFMedic.HealAmount).")]
         public float SquadClassesMedicHealPerSec { get; set; } = 2f;
+
+        [Description("Интервал между тиками хил-корутины Медика (секунды). Дефолт 1.0с — портировано из sosal-плагина (MTFMedic.HealInterval).")]
+        public float SquadClassesMedicHealInterval { get; set; } = 1f;
 
         [Description("Множитель ИСХОДЯЩЕГО урона для Командира. 1.20 = +20% урона по всем целям.")]
         public float SquadClassesCommanderDamageMult { get; set; } = 1.20f;
