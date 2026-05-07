@@ -216,9 +216,40 @@ SCP:SL плагинов в `FermixAPI.dll`. Каждый пункт — отде
 5. **Project SCRAMBLE** (кастомный предмет + glow + spawn pool)
 6. **BetterScp106** (4 фичи, конфиг, биндинги)
 7. **G.O.C.-V14.1** (роль/фракция — самое сложное, требует декомпиляции)
+8. **NightVisionGoggles** (`MS-crew/NightVisionGoggles`) — кастомный
+   предмет на базе SCP-1344. Реализовано в `Systems/FermixNvg.cs` +
+   конфиг `Nvg*` + регистрация в реестре `Commands/ItemCommand.cs`
+   (id `nvg`). Заводится 2 шт. в комплексе на старте раунда (HCZ-armory,
+   SCP-939, Nuke, LCZ-armory, EZ-Gates A/B), подсветка через `FermixGlow`.
+   При активации (стандартный `Use` бинд SCP-1344) — `NightVision` эффект,
+   снятие «слепящего» эффекта 1344, зелёный `ToyLight`-прожектор,
+   привязанный к камере (видит только носитель и его зрители).
 
 Каждый пункт = отдельный PR. После merge'а — обновляй чек-боксы в этом
 файле (превращай `[ ]` в `[x]`).
+
+## Реестры кастом-сущностей
+
+С v2.6.0 в FermixAPI введены **два реестра** для управления кастомным
+контентом через RA-команды:
+
+### Кастомные классы поверх MTF/Chaos — `Systems/FermixSquadClasses.cs`
+- 4 пассивки: `Medic`, `Juggernaut`, `Commander`, `Rifleman` (она же `None`)
+- Применяются автоматически на `RespawnedTeam` (из пулов `NtfPool` / `ChaosPool`)
+- Ручная выдача через RA: **`role give <ник> <medic|jugger|commander|rifleman>`**
+  - Алиасы: `medic`/`медик`, `jugger`/`juggernaut`/`джагг`/`джаггернаут`,
+    `commander`/`командир`, `rifleman`/`none`/`стрелок`/`подрывник`
+- Список доступных: **`role list`**
+- Реализация: `FermixSquadClasses.ApplyRoleByAlias(Player, alias, out err)`
+
+### Кастомные предметы — `Commands/ItemCommand.cs`
+- Реестр `Dictionary<string, (desc, give)>` внутри `ItemCommand`
+- Добавление новых: либо строкой в инициализаторе, либо через
+  `ItemCommand.Register(id, desc, give)` из `Initialize` модуля
+- Ручная выдача: **`item give <ник> <id>`**
+- Список доступных: **`item list`**
+- Текущие записи:
+  - `nvg` — Прибор ночного видения (`FermixNvg.GiveTo`)
 
 ---
 

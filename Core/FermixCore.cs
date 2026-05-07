@@ -21,8 +21,8 @@ namespace FermixAPI.Core
         #region Version Info
 
         public const int VersionMajor = 2;
-        public const int VersionMinor = 5;
-        public const int VersionPatch = 10;
+        public const int VersionMinor = 6;
+        public const int VersionPatch = 0;
         public const string VersionSuffix = "release";
 
         /// <summary>
@@ -146,6 +146,7 @@ namespace FermixAPI.Core
                 SafeInit("FermixChat",                 Systems.FermixChat.Initialize);
                 SafeInit("FermixGeneratorHud",         Systems.FermixGeneratorHud.Initialize);
                 SafeInit("FermixScramble",             Systems.FermixScramble.Initialize);
+                SafeInit("FermixNvg",                  Systems.FermixNvg.Initialize);
                 SafeInit("FermixCallvote",             Systems.FermixCallvote.Initialize);
                 SafeInit("FermixGoc",                  Systems.FermixGoc.Initialize);
                 SafeInit("FermixSquadClasses",         Systems.FermixSquadClasses.Initialize);
@@ -213,6 +214,7 @@ namespace FermixAPI.Core
             SafeShutdown("FermixSquadClasses",     Systems.FermixSquadClasses.Shutdown);
             SafeShutdown("FermixGoc",              Systems.FermixGoc.Shutdown);
             SafeShutdown("FermixCallvote",         Systems.FermixCallvote.Shutdown);
+            SafeShutdown("FermixNvg",              Systems.FermixNvg.Shutdown);
             SafeShutdown("FermixScramble",         Systems.FermixScramble.Shutdown);
             SafeShutdown("FermixGeneratorHud",     Systems.FermixGeneratorHud.Shutdown);
             SafeShutdown("FermixChat",             Systems.FermixChat.Shutdown);
