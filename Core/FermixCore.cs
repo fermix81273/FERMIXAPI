@@ -22,7 +22,7 @@ namespace FermixAPI.Core
 
         public const int VersionMajor = 2;
         public const int VersionMinor = 6;
-        public const int VersionPatch = 6;
+        public const int VersionPatch = 5;
         public const string VersionSuffix = "release";
 
         /// <summary>
@@ -128,6 +128,7 @@ namespace FermixAPI.Core
             SafeInit("FermixPaths",                () => FermixPaths.Initialize());
             SafeInit("FermixConfigUtils",          () => Utils.FermixConfigUtils.Initialize());
             SafeInit("FermixData",                 () => Utils.FermixData.Initialize());
+            SafeInit("FermixConfigSplit",          Systems.FermixConfigSplit.Initialize);
 
             SafeInit("WaitingForPlayers hook",     () => Handlers.Server.WaitingForPlayers += OnWaitingForPlayers);
             SafeInit("Player.Left hook",           () => Handlers.Player.Left += OnPlayerLeft);

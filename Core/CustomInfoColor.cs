@@ -40,36 +40,39 @@ namespace FermixAPI.Core
     /// <summary>
     /// Расширения для <see cref="CustomInfoColor"/>: возвращает hex без
     /// решётки (готов к подстановке в <c>&lt;color=#...&gt;</c>).
+    /// Значения берутся из <c>NicknameSync.ValidateCustomInfo</c> — там идёт
+    /// case-sensitive Contains-проверка по массиву <c>Misc.AcceptedColours</c>,
+    /// поэтому регистр и точные hex-коды должны совпадать с игровым списком.
     /// </summary>
     public static class CustomInfoColorExtensions
     {
         public static string GetHexColor(this CustomInfoColor color) => color switch
         {
-            CustomInfoColor.Pink => "ff96de",
-            CustomInfoColor.Red => "c50000",
+            CustomInfoColor.Pink => "FF96DE",
+            CustomInfoColor.Red => "C50000",
             CustomInfoColor.Brown => "944710",
-            CustomInfoColor.Silver => "a0a0a0",
-            CustomInfoColor.LightGreen => "32cd32",
-            CustomInfoColor.Crimson => "dc143c",
-            CustomInfoColor.Cyan => "00b7eb",
-            CustomInfoColor.Aqua => "00ffff",
-            CustomInfoColor.DeepPink => "ff1493",
-            CustomInfoColor.Tomato => "ff6347",
-            CustomInfoColor.Yellow => "fae00c",
-            CustomInfoColor.Magenta => "ff0090",
-            CustomInfoColor.BlueGreen => "4ddcb6",
-            CustomInfoColor.Orange => "ff9966",
-            CustomInfoColor.Lime => "bfff00",
-            CustomInfoColor.Green => "228b22",
-            CustomInfoColor.Emerald => "50c878",
+            CustomInfoColor.Silver => "A0A0A0",
+            CustomInfoColor.LightGreen => "32CD32",
+            CustomInfoColor.Crimson => "DC143C",
+            CustomInfoColor.Cyan => "00B7EB",
+            CustomInfoColor.Aqua => "00FFFF",
+            CustomInfoColor.DeepPink => "FF1493",
+            CustomInfoColor.Tomato => "FF6448",
+            CustomInfoColor.Yellow => "FAFF86",
+            CustomInfoColor.Magenta => "FF0090",
+            CustomInfoColor.BlueGreen => "4DFFB8",
+            CustomInfoColor.Orange => "FF9966",
+            CustomInfoColor.Lime => "BFFF00",
+            CustomInfoColor.Green => "228B22",
+            CustomInfoColor.Emerald => "50C878",
             CustomInfoColor.Carmine => "960018",
             CustomInfoColor.Nickel => "727472",
-            CustomInfoColor.Mint => "98fb98",
-            CustomInfoColor.ArmyGreen => "4b5320",
-            CustomInfoColor.Pumpkin => "ff7518",
+            CustomInfoColor.Mint => "98FB98",
+            CustomInfoColor.ArmyGreen => "4B5320",
+            CustomInfoColor.Pumpkin => "EE7600",
             CustomInfoColor.Black => "000000",
-            CustomInfoColor.White => "ffffff",
-            _ => "ffffff",
+            CustomInfoColor.White => "FFFFFF",
+            _ => "FFFFFF",
         };
     }
 }
