@@ -170,16 +170,51 @@ namespace FermixAPI
         [Description("Включить кастомные классы для отрядов NTF и Chaos (Командир/Медик/Джаггернаут/Стрелок-Подрывник). G.O.C.-ранги тоже получают пассивки через эту систему.")]
         public bool SquadClassesEnabled { get; set; } = true;
 
-        [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждую секунду.")]
+        [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждый интервал.")]
         public float SquadClassesMedicRadius { get; set; } = 6f;
 
-        [Description("Сколько HP в секунду восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена.")]
-        public float SquadClassesMedicHealPerSec { get; set; } = 5f;
+        [Description("Сколько HP за тик восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена. Дефолт 2 HP — портировано из sosal-плагина (MTFMedic.HealAmount).")]
+        public float SquadClassesMedicHealPerSec { get; set; } = 2f;
+
+        [Description("Интервал между тиками хил-корутины Медика (секунды). Дефолт 1.0с — портировано из sosal-плагина (MTFMedic.HealInterval).")]
+        public float SquadClassesMedicHealInterval { get; set; } = 1f;
 
         [Description("Множитель ИСХОДЯЩЕГО урона для Командира. 1.20 = +20% урона по всем целям.")]
         public float SquadClassesCommanderDamageMult { get; set; } = 1.20f;
 
-        [Description("Множитель ВХОДЯЩЕГО урона для Джаггернаута. 0.90 = −10% получаемого урона.")]
-        public float SquadClassesJuggernautIncomingMult { get; set; } = 0.90f;
+        // ── FermixNvg (Night Vision Goggles) ─────────────────────────
+
+        [Description("Включить кастомный предмет «Прибор ночного видения» (адаптация MS-crew/NightVisionGoggles). Базируется на SCP-1344, активируется штатным биндом использования предмета.")]
+        public bool NvgEnabled { get; set; } = true;
+
+        [Description("Сколько NVG-предметов спавнить в комплексе при старте раунда (0..8).")]
+        public int NvgSpawnCount { get; set; } = 2;
+
+        [Description("Задержка перед авто-спавном NVG-предметов в секундах от старта раунда.")]
+        public float NvgSpawnDelay { get; set; } = 5f;
+
+        [Description("Снимать ли стандартный «слепящий» эффект SCP-1344 при надевании NVG (true — как в оригинальном плагине).")]
+        public bool NvgRemove1344Effect { get; set; } = true;
+
+        [Description("Интенсивность эффекта ночного видения 1..255. Дефолт 1.")]
+        public int NvgEffectIntensity { get; set; } = 1;
+
+        [Description("Дальность фонаря NVG (метры). Дефолт 50 — порт оригинала.")]
+        public float NvgLightRange { get; set; } = 50f;
+
+        [Description("Интенсивность фонаря NVG. Дефолт 4 (оригинал был 70 — слишком ярко в SCP:SL движке, ужал).")]
+        public float NvgLightIntensity { get; set; } = 4f;
+
+        [Description("Угол прожектора NVG. Дефолт 90.")]
+        public float NvgLightSpotAngle { get; set; } = 90f;
+
+        [Description("Внутренний угол прожектора NVG. Дефолт 0.")]
+        public float NvgLightInnerAngle { get; set; } = 0f;
+
+        [Description("Заставлять ли прожектор NVG отслеживать поворот камеры игрока (рекомендуется true).")]
+        public bool NvgTrackCamera { get; set; } = true;
+
+        [Description("Интервал апдейта поворота прожектора NVG за камерой в секундах. Дефолт 0.1.")]
+        public float NvgTrackInterval { get; set; } = 0.1f;
     }
 }

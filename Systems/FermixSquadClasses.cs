@@ -6,6 +6,7 @@ using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Server;
 using FermixAPI.Core;
+using MEC;
 using PlayerRoles;
 using UnityEngine;
 
@@ -16,12 +17,14 @@ namespace FermixAPI.Systems
     ///
     /// Концепция: при каждом RespawnedTeam-событии (NTF/Chaos-волна) каждому
     /// прибывшему игроку случайно (по приоритету и MaxPerWave) выдаётся один из
-    /// четырёх классов фракции. Каждый класс — это уникальный лоадаут плюс
-    /// пассивная способность:
+    /// четырёх классов фракции. Логика Медика и Джаггернаута портирована
+    /// из исходников «sosal»-плагина (MTFMedic / CIMedic / JuggernautSAT):
     /// <list type="bullet">
     ///   <item><b>Командир</b> — +20% исходящего урона союзникам.</item>
-    ///   <item><b>Медик</b> — лечит союзников в радиусе 6 м на 5 HP/с.</item>
-    ///   <item><b>Джаггернаут</b> — 200 HP и −10% входящего урона.</item>
+    ///   <item><b>Медик</b> — каждую секунду лечит союзников в радиусе на 2 HP через
+    ///       персональную MEC-корутину (1:1 порт sosal MTFMedicModule.HealingLoop).</item>
+    ///   <item><b>Джаггернаут</b> — 125 HP и Scale ×1.15, без damage-reduction
+    ///       (JuggernautSATModule.ConvertToJuggernautSAT).</item>
     ///   <item><b>Стрелок/Подрывник</b> — базовый класс без пассивки.</item>
     /// </list>
     ///
@@ -49,6 +52,7 @@ namespace FermixAPI.Systems
             public int MaxPerWave;
             public float MaxHealth;         // 0 — оставить дефолтное HP роли
             public float ArtificialHealth;  // 0 — не накидывать
+            public float Scale;             // 0 или 1 — без изменения; 1.15 — джаггернаут
             public ItemType[] Loadout;
             public SquadClassPassive Passive;
         }
@@ -83,44 +87,42 @@ namespace FermixAPI.Systems
             },
             new SquadClass
             {
-                Name = "Медик NTF",
-                Description = "Полевой медик. Возит на себе аптечки и " +
-                              "адреналин, обладает SCP-500. Пассивка: " +
-                              "<b>лечит союзников в радиусе 6 м на 5 HP/с</b>.",
+                Name = "МТФ-Медик",
+                Description = "Полевой медик. Каждую секунду лечит союзников " +
+                              "вокруг себя на 2 HP (радиус задаётся конфигом).",
                 Color = "8be3ff",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
                 Loadout = new[]
                 {
-                    ItemType.ArmorLight,
-                    ItemType.GunCOM18,
+                    ItemType.GunE11SR,
+                    ItemType.ArmorHeavy,
+                    ItemType.KeycardFacilityManager,
                     ItemType.Medkit,
                     ItemType.Medkit,
-                    ItemType.Adrenaline,
-                    ItemType.Adrenaline,
                     ItemType.SCP500,
-                    ItemType.KeycardMTFOperative,
-                    ItemType.Radio,
                 },
                 Passive = SquadClassPassive.Medic,
             },
             new SquadClass
             {
-                Name = "Джаггернаут NTF",
-                Description = "Тяжёлый штурмовик. Носит броню класса HEAVY и " +
-                              "Logicer. Пассивка: <b>200 HP</b> и " +
-                              "<b>−10% входящего урона</b>.",
-                Color = "ff8b8b",
+                Name = "Джаггернаут СБ",
+                Description = "Тяжёлый штурмовик. <b>125 HP</b>, размер ×1.15, " +
+                              "тяжёлая броня и FR-MG-0.",
+                Color = "8B4513",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
-                MaxHealth = 200f,
+                MaxHealth = 125f,
+                Scale = 1.15f,
                 Loadout = new[]
                 {
+                    ItemType.KeycardMTFPrivate,
+                    ItemType.GunFRMG0,
                     ItemType.ArmorHeavy,
-                    ItemType.GunLogicer,
-                    ItemType.GunRevolver,
+                    ItemType.Radio,
+                    ItemType.GrenadeFlash,
+                    ItemType.GrenadeFlash,
                     ItemType.Medkit,
-                    ItemType.KeycardMTFOperative,
                 },
                 Passive = SquadClassPassive.Juggernaut,
             },
@@ -172,43 +174,42 @@ namespace FermixAPI.Systems
             },
             new SquadClass
             {
-                Name = "Медик Хаоса",
-                Description = "Полевой санитар Хаоса. Аптечки, адреналин, " +
-                              "SCP-500. Пассивка: <b>лечит союзников в " +
-                              "радиусе 6 м на 5 HP/с</b>.",
+                Name = "ПХ-Медик",
+                Description = "Полевой санитар Хаоса. Каждую секунду лечит " +
+                              "союзников вокруг себя на 2 HP.",
                 Color = "8be3ff",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
                 Loadout = new[]
                 {
-                    ItemType.ArmorLight,
-                    ItemType.GunCOM18,
+                    ItemType.GunE11SR,
+                    ItemType.ArmorHeavy,
+                    ItemType.KeycardFacilityManager,
                     ItemType.Medkit,
                     ItemType.Medkit,
-                    ItemType.Adrenaline,
-                    ItemType.Adrenaline,
                     ItemType.SCP500,
-                    ItemType.Radio,
                 },
                 Passive = SquadClassPassive.Medic,
             },
             new SquadClass
             {
                 Name = "Джаггернаут Хаоса",
-                Description = "Штурмовой танк Хаоса. Тяжёлая броня, дробовик и " +
-                              "револьвер. Пассивка: <b>200 HP</b> и " +
-                              "<b>−10% входящего урона</b>.",
-                Color = "ff8b8b",
+                Description = "Штурмовой танк Хаоса. <b>125 HP</b>, размер ×1.15, " +
+                              "тяжёлая броня и FR-MG-0.",
+                Color = "8B4513",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
-                MaxHealth = 200f,
+                MaxHealth = 125f,
+                Scale = 1.15f,
                 Loadout = new[]
                 {
-                    ItemType.ArmorHeavy,
-                    ItemType.GunShotgun,
-                    ItemType.GunRevolver,
-                    ItemType.Medkit,
                     ItemType.KeycardChaosInsurgency,
+                    ItemType.GunFRMG0,
+                    ItemType.ArmorHeavy,
+                    ItemType.Radio,
+                    ItemType.GrenadeFlash,
+                    ItemType.GrenadeFlash,
+                    ItemType.Medkit,
                 },
                 Passive = SquadClassPassive.Juggernaut,
             },
@@ -248,8 +249,12 @@ namespace FermixAPI.Systems
         private static readonly Dictionary<string, PassiveAssignment> _passives =
             new(StringComparer.Ordinal);
 
+        // sosal-стиль per-medic корутины: одна хил-петля на каждого Медика,
+        // ключ — UserId (чтобы не держать stale Player ref после disconnect).
+        private static readonly Dictionary<string, CoroutineHandle> _medicCoroutines =
+            new(StringComparer.Ordinal);
+
         private static bool _initialized;
-        private static MEC.CoroutineHandle _healTickHandle;
 
         // ── lifecycle ───────────────────────────────────────────────
 
@@ -261,9 +266,10 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundEnd += OnRoundEnd;
             FermixEvents.OnPlayerLeave += OnPlayerLeave;
             FermixEvents.OnPlayerHurt += OnPlayerHurt;
+            FermixEvents.OnPlayerDied += OnPlayerDied;
+            FermixEvents.OnRoleChange += OnRoleChange;
             Exiled.Events.Handlers.Server.RespawnedTeam += OnRespawnedTeam;
 
-            _healTickHandle = FermixScheduler.Repeat("squadclasses-heal", 1f, HealAuraTick);
             _initialized = true;
         }
 
@@ -275,9 +281,11 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundEnd -= OnRoundEnd;
             FermixEvents.OnPlayerLeave -= OnPlayerLeave;
             FermixEvents.OnPlayerHurt -= OnPlayerHurt;
+            FermixEvents.OnPlayerDied -= OnPlayerDied;
+            FermixEvents.OnRoleChange -= OnRoleChange;
             Exiled.Events.Handlers.Server.RespawnedTeam -= OnRespawnedTeam;
 
-            FermixScheduler.Cancel("squadclasses-heal");
+            StopAllMedicCoroutines();
             lock (_lock) _passives.Clear();
             _initialized = false;
         }
@@ -304,12 +312,73 @@ namespace FermixAPI.Systems
                     IsTeammate = isTeammate ?? (_ => false),
                 };
             }
+            if (passive == SquadClassPassive.Medic) StartMedicHealing(p);
+            else StopMedicHealing(p.UserId);
         }
 
         public static void Unregister(Player p)
         {
             if (p?.UserId == null) return;
             lock (_lock) _passives.Remove(p.UserId);
+            StopMedicHealing(p.UserId);
+        }
+
+        /// <summary>
+        /// Перечислить все имена кастомных классов для команды
+        /// <c>.fermix role list</c>.
+        /// </summary>
+        public static IEnumerable<string> ListAllClassNames()
+        {
+            foreach (var c in NtfPool) yield return c.Name;
+            foreach (var c in ChaosPool) yield return c.Name;
+        }
+
+        /// <summary>
+        /// Найти и применить класс к игроку по «короткому» алиасу
+        /// (<c>medic</c>, <c>jugger</c>/<c>juggernaut</c>, <c>commander</c>,
+        /// <c>rifleman</c>/<c>none</c>) с учётом текущей фракции игрока.
+        /// </summary>
+        public static bool ApplyRoleByAlias(Player p, string alias, out string error)
+        {
+            error = null;
+            if (p == null || !p.IsConnected) { error = "Игрок не найден или оффлайн."; return false; }
+            if (!p.IsAlive) { error = "Игрок мёртв — сначала заспавни."; return false; }
+            if (string.IsNullOrWhiteSpace(alias)) { error = "Не указан класс."; return false; }
+
+            var team = p.Role?.Team;
+            List<SquadClass> pool;
+            Func<Player, bool> mate;
+            if (team == Team.FoundationForces)
+            {
+                pool = NtfPool;
+                mate = ally => ally?.Role?.Team == Team.FoundationForces;
+            }
+            else if (team == Team.ChaosInsurgency)
+            {
+                pool = ChaosPool;
+                mate = ally => ally?.Role?.Team == Team.ChaosInsurgency;
+            }
+            else
+            {
+                error = "Игрок не в NTF и не в Chaos. Сначала смени ему фракцию.";
+                return false;
+            }
+
+            SquadClassPassive? wantedPassive = alias.ToLowerInvariant() switch
+            {
+                "medic" or "медик" => SquadClassPassive.Medic,
+                "jugger" or "juggernaut" or "джагг" or "джаггернаут" => SquadClassPassive.Juggernaut,
+                "commander" or "командир" => SquadClassPassive.Commander,
+                "rifleman" or "none" or "стрелок" or "подрывник" => SquadClassPassive.None,
+                _ => null,
+            };
+            if (wantedPassive == null) { error = $"Неизвестный класс '{alias}'. Доступно: medic, jugger, commander, rifleman."; return false; }
+
+            var cls = pool.FirstOrDefault(c => c.Passive == wantedPassive);
+            if (cls == null) { error = $"В пуле {team} нет класса '{alias}'."; return false; }
+
+            Apply(p, cls, mate);
+            return true;
         }
 
         // ── core: assignment on respawn ─────────────────────────────
@@ -398,6 +467,11 @@ namespace FermixAPI.Systems
                     p.ArtificialHealth = Mathf.Max(p.ArtificialHealth, cls.ArtificialHealth);
                 }
 
+                // Сбрасываем scale с прошлой роли и при необходимости ставим новый.
+                p.Scale = Vector3.one;
+                if (cls.Scale > 0f && Math.Abs(cls.Scale - 1f) > 0.001f)
+                    p.Scale = new Vector3(cls.Scale, cls.Scale, cls.Scale);
+
                 p.CustomInfo = $"<color=#{cls.Color}>{cls.FactionLabel} — {cls.Name}</color>";
 
                 lock (_lock)
@@ -410,6 +484,11 @@ namespace FermixAPI.Systems
                         IsTeammate = mate,
                     };
                 }
+
+                // sosal-стиль: при назначении Медика — запускаем ему персональную
+                // хил-корутину (аналог MTFMedicModule.StartHealingCoroutine).
+                if (cls.Passive == SquadClassPassive.Medic) StartMedicHealing(p);
+                else StopMedicHealing(p.UserId);
 
                 SendHint(p, cls);
             }
@@ -431,33 +510,95 @@ namespace FermixAPI.Systems
 
         // ── passive: heal aura ──────────────────────────────────────
 
-        private static void HealAuraTick()
+        private static void StartMedicHealing(Player medic)
         {
-            if (FermixCore.Config?.SquadClassesEnabled != true) return;
-
-            float radius = Mathf.Max(0.5f, FermixCore.Config?.SquadClassesMedicRadius ?? 6f);
-            float perSec = Mathf.Max(0f, FermixCore.Config?.SquadClassesMedicHealPerSec ?? 5f);
-            if (perSec <= 0f) return;
-
-            KeyValuePair<string, PassiveAssignment>[] snapshot;
-            lock (_lock) snapshot = _passives.ToArray();
-
-            foreach (var kvp in snapshot)
+            if (medic?.UserId == null) return;
+            string id = medic.UserId;
+            lock (_medicCoroutines)
             {
-                if (kvp.Value.Passive != SquadClassPassive.Medic) continue;
-                var medic = Player.Get(kvp.Key);
-                if (medic == null || !medic.IsConnected || !medic.IsAlive) continue;
+                if (_medicCoroutines.TryGetValue(id, out var existing) && existing.IsRunning)
+                    Timing.KillCoroutines(existing);
+                _medicCoroutines[id] = Timing.RunCoroutine(HealingLoop(id));
+            }
+        }
 
-                Vector3 origin = medic.Position;
-                foreach (var ally in Player.List)
-                {
-                    if (ally == null || ally == medic || !ally.IsAlive) continue;
-                    if (kvp.Value.IsTeammate?.Invoke(ally) != true) continue;
-                    if (ally.Health >= ally.MaxHealth) continue;
-                    if (Vector3.Distance(origin, ally.Position) > radius) continue;
+        private static void StopMedicHealing(string userId)
+        {
+            if (string.IsNullOrEmpty(userId)) return;
+            lock (_medicCoroutines)
+            {
+                if (_medicCoroutines.TryGetValue(userId, out var h) && h.IsRunning)
+                    Timing.KillCoroutines(h);
+                _medicCoroutines.Remove(userId);
+            }
+        }
 
-                    ally.Health = Mathf.Min(ally.Health + perSec, ally.MaxHealth);
-                }
+        private static void StopAllMedicCoroutines()
+        {
+            lock (_medicCoroutines)
+            {
+                foreach (var h in _medicCoroutines.Values)
+                    if (h.IsRunning) Timing.KillCoroutines(h);
+                _medicCoroutines.Clear();
+            }
+        }
+
+        /// <summary>
+        /// 1:1 порт <c>MTFMedicModule.HealingLoop</c>: пока Медик жив и всё
+        /// ещё в реестре пассивок, каждые <c>HealInterval</c> секунды
+        /// лечит союзников в радиусе.
+        /// </summary>
+        private static IEnumerator<float> HealingLoop(string medicUserId)
+        {
+            while (true)
+            {
+                if (FermixCore.Config?.SquadClassesEnabled != true) break;
+
+                float interval = Mathf.Max(0.1f, FermixCore.Config?.SquadClassesMedicHealInterval ?? 1f);
+                yield return Timing.WaitForSeconds(interval);
+
+                if (!IsActiveMedic(medicUserId, out var medic)) break;
+                HealNearbyAllies(medic, medicUserId);
+            }
+            lock (_medicCoroutines) _medicCoroutines.Remove(medicUserId);
+        }
+
+        private static bool IsActiveMedic(string userId, out Player medic)
+        {
+            medic = Player.Get(userId);
+            if (medic == null || !medic.IsConnected || !medic.IsAlive) return false;
+            lock (_lock)
+            {
+                return _passives.TryGetValue(userId, out var asg)
+                       && asg.Passive == SquadClassPassive.Medic;
+            }
+        }
+
+        /// <summary>
+        /// 1:1 порт <c>MTFMedicModule.HealNearbyAllies</c>.
+        /// </summary>
+        private static void HealNearbyAllies(Player medic, string medicUserId)
+        {
+            float radius = Mathf.Max(0.5f, FermixCore.Config?.SquadClassesMedicRadius ?? 6f);
+            float amount = Mathf.Max(0f, FermixCore.Config?.SquadClassesMedicHealPerSec ?? 2f);
+            if (amount <= 0f) return;
+
+            Func<Player, bool> isTeammate;
+            lock (_lock)
+            {
+                if (!_passives.TryGetValue(medicUserId, out var asg)) return;
+                isTeammate = asg.IsTeammate;
+            }
+
+            Vector3 origin = medic.Position;
+            foreach (var ally in Player.List)
+            {
+                if (ally == null || ally == medic || !ally.IsAlive) continue;
+                if (isTeammate?.Invoke(ally) != true) continue;
+                if (ally.Health >= ally.MaxHealth) continue;
+                if (Vector3.Distance(origin, ally.Position) > radius) continue;
+
+                ally.Health = Mathf.Min(ally.Health + amount, ally.MaxHealth);
             }
         }
 
@@ -483,18 +624,8 @@ namespace FermixAPI.Systems
                 }
             }
 
-            if (ev.Player?.UserId != null)
-            {
-                lock (_lock)
-                {
-                    if (_passives.TryGetValue(ev.Player.UserId, out var tgt)
-                        && tgt.Passive == SquadClassPassive.Juggernaut)
-                    {
-                        float mult = FermixCore.Config?.SquadClassesJuggernautIncomingMult ?? 0.90f;
-                        dmg *= Mathf.Max(0.01f, mult);
-                    }
-                }
-            }
+            // sosal-портированный Джаггернаут не имеет damage-reduction —
+            // только увеличенное HP и scale. Получаемый урон не модифицируем.
 
             if (Math.Abs(dmg - ev.Amount) > 0.01f) ev.Amount = dmg;
         }
@@ -504,17 +635,37 @@ namespace FermixAPI.Systems
         private static void OnRoundStart()
         {
             lock (_lock) _passives.Clear();
+            StopAllMedicCoroutines();
         }
 
         private static void OnRoundEnd(RoundEndedEventArgs _)
         {
             lock (_lock) _passives.Clear();
+            StopAllMedicCoroutines();
         }
 
         private static void OnPlayerLeave(LeftEventArgs ev)
         {
             if (ev?.Player?.UserId == null) return;
             lock (_lock) _passives.Remove(ev.Player.UserId);
+            StopMedicHealing(ev.Player.UserId);
+        }
+
+        // sosal MTFMedicModule.OnPlayerDied / OnChangingRole — при смерти или
+        // смене роли Медик больше не Медик, корутину глушим.
+        private static void OnPlayerDied(DiedEventArgs ev)
+        {
+            if (ev?.Player?.UserId == null) return;
+            StopMedicHealing(ev.Player.UserId);
+        }
+
+        private static void OnRoleChange(ChangingRoleEventArgs ev)
+        {
+            if (ev?.Player?.UserId == null) return;
+            // При смене роли сбрасываем passive и хил-корутину — новый класс
+            // переоткроется в RespawnedTeam, если это волна.
+            lock (_lock) _passives.Remove(ev.Player.UserId);
+            StopMedicHealing(ev.Player.UserId);
         }
     }
 }
