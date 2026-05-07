@@ -14,6 +14,12 @@ namespace FermixAPI
         [Description("Режим отладки - выводит дополнительную информацию в консоль")]
         public bool Debug { get; set; } = false;
 
+        [Description("Применять Harmony-патчи hint-движка (HintDisplay.Show, Player.ShowHint). Установи false для диагностики проблем подключения игроков, если есть подозрение на конфликт с игрой/другим плагином. При false наш hint-стек работать не будет, но базовые player.ShowHint от EXILED/LabAPI продолжат идти по родному пути игры.")]
+        public bool EnableHintEnginePatches { get; set; } = true;
+
+        [Description("САВНЫЙ РЕЖИМ: отключает ВСЕ подсистемы (Coin/Glow/Chat/Goc/...) и Harmony-патчи. Загружает только ядро + EXILED-привязки. Используй для A/B-теста, если игроки не могут зайти на сервер с FermixAPI.")]
+        public bool SafeMode { get; set; } = false;
+
         [Description("Показывать ASCII-логотип при запуске")]
         public bool ShowLogo { get; set; } = true;
 
@@ -141,7 +147,39 @@ namespace FermixAPI
         [Description("Включить G.O.C. — отдельный отряд, враждебный всем (MTF, Chaos, SCP).")]
         public bool GocEnabled { get; set; } = true;
 
-        [Description("Шанс (0..1) того, что прибывшая волна MTF превратится в G.O.C.")]
-        public float GocWaveChance { get; set; } = 0.1f;
+        [Description("С какой минуты раунда может начаться волна G.O.C. Раньше этого времени отряд не прибывает ни при каких ролах.")]
+        public float GocWaveStartMinuteThreshold { get; set; } = 15f;
+
+        [Description("Шанс (0..1) того, что очередная MTF-волна после GocWaveStartMinuteThreshold перехватится как G.O.C.-волна. Игроки заспавнятся в MTF-точке, но будут ролью Tutorial и отрядом G.O.C.")]
+        public float GocWaveChance { get; set; } = 0.35f;
+
+        [Description("Разрешать только ОДНУ G.O.C.-волну за раунд. Остальные MTF-волны после неё будут обычными. false — каждая MTF-волна перехватывается по собственному роллу.")]
+        public bool GocOneWavePerRound { get; set; } = true;
+
+        [Description("Сколько оперативников брать из спектаторов, если команда `goc wave` вызвана, когда живых MTF нет. Спавнятся в MTF-точке.")]
+        public int GocManualWaveSize { get; set; } = 5;
+
+        [Description("CASSIE-phonemes для объявления прибытия G.O.C.. Пустое значение — используется встроенный текст. CASSIE говорит английскими фонемами — русский перевод идёт отдельными субтитрами.")]
+        public string GocCassiePhonemes { get; set; } = string.Empty;
+
+        [Description("Русские субтитры к CASSIE-объявлению о прибытии G.O.C.. Пустое значение — используется встроенный текст (в нём упоминаются хакерские атаки и неопознанная враждебная группировка).")]
+        public string GocCassieSubtitles { get; set; } = string.Empty;
+
+        // ── FermixSquadClasses (кастомные классы внутри отрядов) ────
+
+        [Description("Включить кастомные классы для отрядов NTF и Chaos (Командир/Медик/Джаггернаут/Стрелок-Подрывник). G.O.C.-ранги тоже получают пассивки через эту систему.")]
+        public bool SquadClassesEnabled { get; set; } = true;
+
+        [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждую секунду.")]
+        public float SquadClassesMedicRadius { get; set; } = 6f;
+
+        [Description("Сколько HP в секунду восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена.")]
+        public float SquadClassesMedicHealPerSec { get; set; } = 5f;
+
+        [Description("Множитель ИСХОДЯЩЕГО урона для Командира. 1.20 = +20% урона по всем целям.")]
+        public float SquadClassesCommanderDamageMult { get; set; } = 1.20f;
+
+        [Description("Множитель ВХОДЯЩЕГО урона для Джаггернаута. 0.90 = −10% получаемого урона.")]
+        public float SquadClassesJuggernautIncomingMult { get; set; } = 0.90f;
     }
 }

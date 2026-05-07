@@ -21,13 +21,25 @@
                 if (!Plugin.Instance.Config.UseHintCompatibilityAdapter)
                     return false;
 
-                if (hint is TextHint textHint && ReferenceHub.TryGetHubNetID(__instance.connectionToClient.identity.netId, out ReferenceHub referenceHub))
-                {
-                    string assemblyName = Assembly.GetCallingAssembly().FullName;
-                    string content = TextGetter(textHint);
-                    float duration = textHint.DurationScalar;
-                    PlayerDisplay.Get(referenceHub).ShowCompatibilityHint(assemblyName, content, duration);
-                }
+                if (hint is not TextHint textHint)
+                    return false;
+
+                // На раннем этапе подключения у HintDisplay может ещё не быть
+                // привязанного NetworkConnection (или identity на нём), а
+                // ReferenceHub может ещё не быть зарегистрирован в HubsByNetID.
+                // В таком случае молча роняем хинт, но НЕ роняем подключение.
+                var conn = __instance != null ? __instance.connectionToClient : null;
+                var identity = conn != null ? conn.identity : null;
+                if (identity == null)
+                    return false;
+
+                if (!ReferenceHub.TryGetHubNetID(identity.netId, out ReferenceHub referenceHub) || referenceHub == null)
+                    return false;
+
+                string assemblyName = Assembly.GetCallingAssembly().FullName;
+                string content = TextGetter(textHint);
+                float duration = textHint.DurationScalar;
+                PlayerDisplay.Get(referenceHub).ShowCompatibilityHint(assemblyName, content, duration);
             }
             catch (Exception ex)
             {
@@ -42,6 +54,9 @@
             try
             {
                 if (!Plugin.Instance.Config.UseHintCompatibilityAdapter)
+                    return false;
+
+                if (__instance == null || __instance.ReferenceHub == null)
                     return false;
 
                 string assemblyName = Assembly.GetCallingAssembly().FullName;
@@ -61,6 +76,9 @@
             try
             {
                 if (!Plugin.Instance.Config.UseHintCompatibilityAdapter)
+                    return false;
+
+                if (__instance == null || __instance.ReferenceHub == null)
                     return false;
 
                 string assemblyName = Assembly.GetCallingAssembly().FullName;
@@ -83,6 +101,9 @@
                 if (!Plugin.Instance.Config.UseHintCompatibilityAdapter)
                     return false;
 
+                if (__instance == null || __instance.ReferenceHub == null)
+                    return false;
+
                 string assemblyName = Assembly.GetCallingAssembly().FullName;
                 __instance.GetPlayerDisplay().ShowCompatibilityHint(assemblyName, message, duration);
             }
@@ -102,7 +123,10 @@
                 if (!Plugin.Instance.Config.UseHintCompatibilityAdapter)
                     return false;
 
-                if (!hint.Show)
+                if (hint == null || !hint.Show)
+                    return false;
+
+                if (__instance == null || __instance.ReferenceHub == null)
                     return false;
 
                 string assemblyName = Assembly.GetCallingAssembly().FullName;

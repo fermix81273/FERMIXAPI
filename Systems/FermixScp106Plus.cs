@@ -10,7 +10,8 @@ namespace FermixAPI.Systems
 {
     /// <summary>
     /// Расширенные действия SCP-106 в духе BetterScp106: телепорт через
-    /// портал в выбранную комнату HCZ/EZ и переключение Stalk-режима.
+    /// портал в выбранную комнату HCZ/EZ. Stalk-режим
+    /// изъят — отдельной команды/бинда больше нет.
     /// Точка входа — команда <c>.106</c> (см. <c>Scp106Command</c>).
     /// </summary>
     public static class FermixScp106Plus
@@ -22,16 +23,6 @@ namespace FermixAPI.Systems
             if (p.Role?.Type != RoleTypeId.Scp106) { error = "Команда доступна только SCP-106."; return false; }
             role = p.Role.As<Scp106Role>();
             if (role == null) { error = "Не удалось получить роль 106."; return false; }
-            return true;
-        }
-
-        public static bool TryToggleStalk(Player p, out string error)
-        {
-            error = null;
-            if (FermixCore.Config?.Scp106PlusEnabled != true) { error = "Фича выключена."; return false; }
-            if (!RequireScp106(p, out var role, out error)) return false;
-            role.IsStalking = !role.IsStalking;
-            FermixHint.SendColored(p, role.IsStalking ? "Stalk: ВКЛ" : "Stalk: ВЫКЛ", FermixHint.Magenta, 2f);
             return true;
         }
 

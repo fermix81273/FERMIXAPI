@@ -38,44 +38,68 @@ namespace FermixAPI.FermixCoin
 
         private static void OnRoundStart()
         {
-            var delay = Mathf.Max(0f, FermixCore.Config.CoinAutoSpawnDelay);
-            FermixScheduler.Delay(delay, SpawnCoins);
+            try
+            {
+                var delay = Mathf.Max(0f, FermixCore.Config.CoinAutoSpawnDelay);
+                FermixScheduler.Delay(delay, SpawnCoins);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Error($"FermixCoin: CoinSpawner.OnRoundStart упал: {ex}");
+            }
         }
 
         private static void SpawnCoins()
         {
-            int requested = FermixCore.Config.CoinAutoSpawnCount;
-            if (requested <= 0) return;
-
-            var rooms = Room.List
-                .Where(IsSpawnableRoom)
-                .OrderBy(_ => UnityEngine.Random.value)
-                .Take(requested)
-                .ToList();
-
-            if (rooms.Count == 0)
+            try
             {
-                FermixLog.Warn("FermixCoin: автоспавн монеток — не нашёл подходящих комнат.");
-                return;
-            }
+                int requested = FermixCore.Config.CoinAutoSpawnCount;
+                if (requested <= 0) return;
 
-            int spawned = 0;
-            foreach (var room in rooms)
+                var rooms = Room.List
+                    .Where(IsSpawnableRoom)
+                    .OrderBy(_ => UnityEngine.Random.value)
+                    .Take(requested)
+                    .ToList();
+
+                if (rooms.Count == 0)
+                {
+                    FermixLog.Warn("FermixCoin: автоспавн монеток — не нашёл подходящих комнат.");
+                    return;
+                }
+
+                int spawned = 0;
+                foreach (var room in rooms)
+                {
+                    try
+                    {
+                        var pos = room.Position + Vector3.up * FloorOffset;
+
+                        // Item.Create(ItemType.Coin) создаёт временный wrapper.
+                        // Если он null — выходим без NRE.
+                        var coinItem = Item.Create(ItemType.Coin);
+                        if (coinItem == null)
+                        {
+                            FermixLog.Warn($"FermixCoin: Item.Create вернул null для {room.Type}");
+                            continue;
+                        }
+
+                        var pickup = coinItem.CreatePickup(pos);
+                        if (pickup != null)
+                            spawned++;
+                    }
+                    catch (Exception ex)
+                    {
+                        FermixLog.Warn($"FermixCoin: не удалось заспавнить монетку в {room?.Type}: {ex.Message}");
+                    }
+                }
+
+                FermixLog.Info($"FermixCoin: автоспавн монеток — разложено {spawned}/{requested}.");
+            }
+            catch (Exception ex)
             {
-                try
-                {
-                    var pos = room.Position + Vector3.up * FloorOffset;
-                    var pickup = Item.Create(ItemType.Coin).CreatePickup(pos);
-                    if (pickup != null)
-                        spawned++;
-                }
-                catch (Exception ex)
-                {
-                    FermixLog.Warn($"FermixCoin: не удалось заспавнить монетку в {room.Type}: {ex.Message}");
-                }
+                FermixLog.Error($"FermixCoin: CoinSpawner.SpawnCoins упал целиком: {ex}");
             }
-
-            FermixLog.Info($"FermixCoin: автоспавн монеток — разложено {spawned}/{requested}.");
         }
 
         private static bool IsSpawnableRoom(Room room)

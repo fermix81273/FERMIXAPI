@@ -10,7 +10,7 @@ namespace FermixAPI.Commands
     {
         public string Command => "106";
         public string[] Aliases => new[] { "scp106" };
-        public string Description => "Расширения 106: .106 stalk | .106 tp <комната>";
+        public string Description => "Расширения 106: .106 tp <комната>";
 
         public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
         {
@@ -21,9 +21,6 @@ namespace FermixAPI.Commands
             string sub = arguments.Array[arguments.Offset].ToLowerInvariant();
             switch (sub)
             {
-                case "stalk":
-                    if (!FermixScp106Plus.TryToggleStalk(p, out string e1)) { response = e1; return false; }
-                    response = "OK"; return true;
                 case "tp":
                 case "teleport":
                 case "portal":

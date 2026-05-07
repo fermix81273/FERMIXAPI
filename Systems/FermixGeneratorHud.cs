@@ -5,17 +5,32 @@ using System.Text;
 using Exiled.API.Enums;
 using Exiled.API.Features;
 using FermixAPI.Core;
+using FermixAPI.Hints.Core.Enum;
+using FermixAPI.Hints.Core.Utilities;
+using HsmHint = FermixAPI.Hints.Core.Models.Hints.Hint;
 
 namespace FermixAPI.Systems
 {
     /// <summary>
-    /// HUD для SCP-команды: отображает в углу экрана список активирующихся
-    /// генераторов и оставшееся время до их окончательного запуска. Аналог
-    /// HyperBeastHUB/SCP-Generator-List, переписанный под наш стек хинтов.
+    /// HUD для SCP-команды: отображает в ЛЕВОМ НИЖНЕМ углу экрана список
+    /// активирующихся генераторов и оставшееся время до их окончательного
+    /// запуска. Использует собственный <see cref="HsmHint"/> в отдельной группе
+    /// PlayerDisplay ("FermixAPI.GenHud"), чтобы не наслаиваться на центральный
+    /// hint-стек.
     /// </summary>
     public static class FermixGeneratorHud
     {
-        private const string HintId = "fermix_generator_hud";
+        private const string HsmGroupName = "FermixAPI.GenHud";
+
+        // Координаты — нижний левый угол, чуть выше дна экрана.
+        //   YCoordinate=200 от низа (с YCoordinateAlign.Bottom).
+        //   XCoordinate=40 от левого края (с Alignment.Left).
+        private const float HudYCoordinate = 200f;
+        private const float HudXCoordinate = 40f;
+        private const int HudFontSize = 18;
+
+        private static readonly object _lock = new();
+        private static readonly Dictionary<Player, HsmHint> _hudHints = new();
         private static bool _initialized;
 
         /// <summary>Подписаться на события и развесить персистентный HUD.</summary>
@@ -48,8 +63,9 @@ namespace FermixAPI.Systems
             ClearHud();
             float interval = Math.Max(0.5f, FermixCore.Config?.GeneratorHudUpdateInterval ?? 1f);
             foreach (Player p in Player.List)
-                AttachHud(p, interval);
+                AttachHud(p);
             FermixScheduler.Repeat("fermix_generator_hud_attach", 5f, ReattachAll);
+            FermixScheduler.Repeat("fermix_generator_hud_text", interval, PushTextToAllHints);
         }
 
         private static void OnRoundEnd(Exiled.Events.EventArgs.Server.RoundEndedEventArgs ev)
@@ -59,29 +75,93 @@ namespace FermixAPI.Systems
 
         private static void ReattachAll()
         {
-            float interval = Math.Max(0.5f, FermixCore.Config?.GeneratorHudUpdateInterval ?? 1f);
             foreach (Player p in Player.List)
-                AttachHud(p, interval);
+                AttachHud(p);
         }
 
-        private static void AttachHud(Player player, float interval)
+        private static void AttachHud(Player player)
         {
-            if (player == null) return;
-            FermixHintStack.ShowPersistentDynamicHint(
-                player,
-                Render,
-                HintId,
-                updateInterval: interval,
-                priority: -40,
-                category: HintCategory.Custom,
-                color: FermixHint.White,
-                showBullet: false);
+            if (player == null || !player.IsConnected || player.ReferenceHub == null) return;
+
+            HsmHint hint;
+            lock (_lock)
+            {
+                if (_hudHints.ContainsKey(player)) return;
+                hint = new HsmHint
+                {
+                    YCoordinate = HudYCoordinate,
+                    XCoordinate = HudXCoordinate,
+                    Alignment = HintAlignment.Left,
+                    YCoordinateAlign = HintVerticalAlign.Bottom,
+                    SyncSpeed = HintSyncSpeed.Normal,
+                    FontSize = HudFontSize,
+                    Text = string.Empty,
+                };
+                _hudHints[player] = hint;
+            }
+
+            try
+            {
+                PlayerDisplay.Get(player.ReferenceHub).AddHint(hint, HsmGroupName);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixGeneratorHud.AttachHud: {ex.Message}");
+                lock (_lock) _hudHints.Remove(player);
+            }
         }
 
         private static void ClearHud()
         {
-            foreach (Player p in Player.List)
-                FermixHintStack.RemoveHint(p, HintId);
+            List<KeyValuePair<Player, HsmHint>> snapshot;
+            lock (_lock)
+            {
+                snapshot = new List<KeyValuePair<Player, HsmHint>>(_hudHints);
+                _hudHints.Clear();
+            }
+            foreach (var kv in snapshot)
+            {
+                try
+                {
+                    if (kv.Key?.ReferenceHub != null)
+                        PlayerDisplay.Get(kv.Key.ReferenceHub).RemoveHint(kv.Value, HsmGroupName);
+                }
+                catch (Exception ex) { FermixLog.Warn($"FermixGeneratorHud.ClearHud: {ex.Message}"); }
+            }
+        }
+
+        private static void PushTextToAllHints()
+        {
+            List<KeyValuePair<Player, HsmHint>> snapshot;
+            lock (_lock)
+            {
+                snapshot = new List<KeyValuePair<Player, HsmHint>>(_hudHints);
+            }
+
+            foreach (var kv in snapshot)
+            {
+                if (kv.Value == null) continue;
+                if (kv.Key == null || !kv.Key.IsConnected) continue;
+
+                try
+                {
+                    string text = Render(kv.Key);
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        if (!kv.Value.Hide) kv.Value.Hide = true;
+                        kv.Value.Text = string.Empty;
+                    }
+                    else
+                    {
+                        kv.Value.Text = text;
+                        if (kv.Value.Hide) kv.Value.Hide = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Warn($"FermixGeneratorHud.PushText for {kv.Key?.Nickname}: {ex.Message}");
+                }
+            }
         }
 
         private static string Render(Player viewer)

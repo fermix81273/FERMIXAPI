@@ -3,37 +3,101 @@ using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Features;
 using FermixAPI.Core;
+using FermixAPI.Hints.Core.Enum;
+using FermixAPI.Hints.Core.Utilities;
 using MEC;
 using UnityEngine;
+using HsmHint = FermixAPI.Hints.Core.Models.Hints.Hint;
 
 namespace FermixAPI.Systems
 {
     /// <summary>
-    /// Голосования игроков: kick / restart / freeform. Один активный слот;
-    /// HUD с таймером и счётом «за/против» отображается у всех живых.
+    /// Голосования игроков (инициируются админом): kick / restart / freeform.
+    /// Голосование рисуется в правом нижнем углу через собственный
+    /// <see cref="HsmHint"/> (отдельная группа PlayerDisplay), чтобы не
+    /// перекрывать центральный hint-стек других подсистем.
     /// </summary>
     public static class FermixCallvote
     {
         public enum VoteKind { Kick, Restart, Custom }
 
-        private const string HudId = "fermix_callvote";
+        private const string HsmGroupName = "FermixAPI.Callvote";
+        private const float HudYCoordinate = 200f;   // от нижней кромки экрана
+        private const float HudXCoordinate = -40f;   // от правой кромки экрана
+        private const int HudFontSize = 18;
+
         private static readonly object _lock = new();
+        private static readonly Dictionary<Player, HsmHint> _hudHints = new();
         private static ActiveVote _vote;
         private static CoroutineHandle _ticker;
         private static bool _initialized;
 
+        // Сохранённая ссылка на handler — иначе анонимный лямбда никогда
+        // не отписался бы (Action equality не работает на разных делегатах
+        // одной и той же лямбды), и при reload плагина мы тащили бы за
+        // собой висящие подписки.
+        private static Action<Exiled.Events.EventArgs.Server.RoundEndedEventArgs> _onRoundEnd;
+
         public static void Initialize()
         {
             if (_initialized || FermixCore.Config?.CallvoteEnabled != true) return;
-            FermixEvents.OnRoundEnd += _ => Cancel("раунд завершён");
+            _onRoundEnd = _ => Cancel("раунд завершён");
+            FermixEvents.OnRoundEnd += _onRoundEnd;
+            FermixEvents.OnPlayerJoin += OnPlayerJoinedDeferred;
+            FermixEvents.OnPlayerLeave += OnPlayerLeft;
             _initialized = true;
         }
 
         public static void Shutdown()
         {
             if (!_initialized) return;
+            if (_onRoundEnd != null)
+            {
+                FermixEvents.OnRoundEnd -= _onRoundEnd;
+                _onRoundEnd = null;
+            }
+            FermixEvents.OnPlayerJoin -= OnPlayerJoinedDeferred;
+            FermixEvents.OnPlayerLeave -= OnPlayerLeft;
             Cancel(null);
             _initialized = false;
+        }
+
+        // Привязываем HUD новому игроку, если голосование уже идёт. Делаем
+        // это с тем же 5-секундным defer'ом, что и FermixChat (чтобы не
+        // сломать join: Mirror NetworkBehaviour ещё инициализируется).
+        private static void OnPlayerJoinedDeferred(Exiled.Events.EventArgs.Player.JoinedEventArgs ev)
+        {
+            if (ev?.Player == null) return;
+            var player = ev.Player;
+            FermixScheduler.Delay(5f, () =>
+            {
+                try
+                {
+                    if (player == null || !player.IsConnected) return;
+                    bool active;
+                    lock (_lock) active = _vote != null;
+                    if (!active) return;
+                    AttachHudFor(player);
+                    PushHudText();
+                }
+                catch (Exception ex) { FermixLog.Warn($"FermixCallvote.OnPlayerJoinedDeferred: {ex.Message}"); }
+            });
+        }
+
+        private static void OnPlayerLeft(Exiled.Events.EventArgs.Player.LeftEventArgs ev)
+        {
+            if (ev?.Player == null) return;
+            HsmHint hint = null;
+            lock (_lock)
+            {
+                if (_hudHints.TryGetValue(ev.Player, out hint)) _hudHints.Remove(ev.Player);
+            }
+            try
+            {
+                if (hint != null && ev.Player.ReferenceHub != null)
+                    PlayerDisplay.Get(ev.Player.ReferenceHub).RemoveHint(hint, HsmGroupName);
+            }
+            catch (Exception ex) { FermixLog.Warn($"FermixCallvote.OnPlayerLeft: {ex.Message}"); }
         }
 
         public static bool TryStart(Player author, VoteKind kind, string targetArg, string reason, out string error)
@@ -88,6 +152,8 @@ namespace FermixAPI.Systems
                 if (_vote.Cast.ContainsKey(id)) { error = "Ты уже голосовал."; return false; }
                 _vote.Cast[id] = yes;
             }
+            try { PushHudText(); }
+            catch (Exception ex) { FermixLog.Warn($"FermixCallvote.TryCast PushHudText: {ex.Message}"); }
             return true;
         }
 
@@ -100,7 +166,7 @@ namespace FermixAPI.Systems
                 _lastEnded = DateTime.UtcNow;
             }
             if (_ticker.IsValid) Timing.KillCoroutines(_ticker);
-            foreach (var p in Player.List) FermixHintStack.RemoveHint(p, HudId);
+            DetachHudFromAll();
             if (!string.IsNullOrEmpty(reason))
                 BroadcastAll($"<color=#888888>Голосование отменено: {reason}.</color>");
         }
@@ -112,6 +178,12 @@ namespace FermixAPI.Systems
             ActiveVote v;
             lock (_lock) v = _vote;
             if (v == null) { if (_ticker.IsValid) Timing.KillCoroutines(_ticker); return; }
+
+            // Каждую секунду перерисовываем HUD (таймер обратного отсчёта,
+            // обновлённое количество за/против).
+            try { PushHudText(); }
+            catch (Exception ex) { FermixLog.Warn($"FermixCallvote.Tick PushHudText: {ex.Message}"); }
+
             if (DateTime.UtcNow >= v.EndsAt) Resolve();
         }
 
@@ -120,7 +192,7 @@ namespace FermixAPI.Systems
             ActiveVote v;
             lock (_lock) { v = _vote; _vote = null; _lastEnded = DateTime.UtcNow; }
             if (_ticker.IsValid) Timing.KillCoroutines(_ticker);
-            foreach (var p in Player.List) FermixHintStack.RemoveHint(p, HudId);
+            DetachHudFromAll();
             if (v == null) return;
 
             int yes = v.Cast.Count(kv => kv.Value);
@@ -158,9 +230,94 @@ namespace FermixAPI.Systems
 
         private static void AttachHudToAll()
         {
-            foreach (var p in Player.List)
-                FermixHintStack.ShowPersistentDynamicHint(p, _ => RenderHud(), HudId,
-                    updateInterval: 1f, priority: -10, color: FermixHint.White, showBullet: false);
+            foreach (var player in Player.List)
+            {
+                if (player == null || !player.IsConnected || player.ReferenceHub == null) continue;
+                AttachHudFor(player);
+            }
+            PushHudText();
+        }
+
+        private static void AttachHudFor(Player player)
+        {
+            HsmHint hint;
+            lock (_lock)
+            {
+                if (_hudHints.ContainsKey(player)) return;
+                hint = new HsmHint
+                {
+                    YCoordinate = HudYCoordinate,
+                    XCoordinate = HudXCoordinate,
+                    Alignment = HintAlignment.Right,
+                    YCoordinateAlign = HintVerticalAlign.Bottom,
+                    SyncSpeed = HintSyncSpeed.Normal,
+                    FontSize = HudFontSize,
+                    Text = string.Empty,
+                };
+                _hudHints[player] = hint;
+            }
+
+            try
+            {
+                PlayerDisplay.Get(player.ReferenceHub).AddHint(hint, HsmGroupName);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixCallvote.AttachHudFor: {ex.Message}");
+                lock (_lock) _hudHints.Remove(player);
+            }
+        }
+
+        private static void DetachHudFromAll()
+        {
+            List<KeyValuePair<Player, HsmHint>> snapshot;
+            lock (_lock)
+            {
+                snapshot = new List<KeyValuePair<Player, HsmHint>>(_hudHints);
+                _hudHints.Clear();
+            }
+
+            foreach (var kv in snapshot)
+            {
+                try
+                {
+                    if (kv.Key?.ReferenceHub != null)
+                        PlayerDisplay.Get(kv.Key.ReferenceHub).RemoveHint(kv.Value, HsmGroupName);
+                }
+                catch (Exception ex) { FermixLog.Warn($"FermixCallvote.DetachHud: {ex.Message}"); }
+            }
+        }
+
+        // Принудительный апдейт текста HUD для всех зарегистрированных хинтов.
+        // Вызывается из Tick() каждую секунду и сразу при cast/cancel.
+        private static void PushHudText()
+        {
+            string text = RenderHud();
+
+            List<KeyValuePair<Player, HsmHint>> snapshot;
+            lock (_lock)
+            {
+                snapshot = new List<KeyValuePair<Player, HsmHint>>(_hudHints);
+            }
+
+            foreach (var kv in snapshot)
+            {
+                if (kv.Value == null) continue;
+                try
+                {
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        kv.Value.Text = string.Empty;
+                        if (!kv.Value.Hide) kv.Value.Hide = true;
+                    }
+                    else
+                    {
+                        kv.Value.Text = text;
+                        if (kv.Value.Hide) kv.Value.Hide = false;
+                    }
+                }
+                catch (Exception ex) { FermixLog.Warn($"FermixCallvote.PushHudText: {ex.Message}"); }
+            }
         }
 
         private static string RenderHud()
@@ -172,9 +329,9 @@ namespace FermixAPI.Systems
             int yes = v.Cast.Count(kv => kv.Value);
             int no = v.Cast.Count - yes;
             int left = Math.Max(0, (int)Math.Ceiling((v.EndsAt - DateTime.UtcNow).TotalSeconds));
-            return $"<size=20><color=#ffd24a>Голосование</color>: {DescribeVote(v)}\n" +
+            return $"<color=#ffd24a>Голосование</color>: {DescribeVote(v)}\n" +
                    $"<color=#5cd45c>За {yes}</color> | <color=#ff4444>Против {no}</color> | {left}с " +
-                   $"<color=#888888>(.vote y / .vote n)</color></size>";
+                   $"<color=#888888>(.vote y/n)</color>";
         }
 
         private static string DescribeVote(ActiveVote v) => v.Kind switch
