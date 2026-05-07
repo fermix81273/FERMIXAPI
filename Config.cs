@@ -173,13 +173,10 @@ namespace FermixAPI
         [Description("Радиус хил-ауры Медика в метрах. Союзники в этом радиусе с не-полным HP получают регенерацию каждую секунду.")]
         public float SquadClassesMedicRadius { get; set; } = 6f;
 
-        [Description("Сколько HP в секунду восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена.")]
-        public float SquadClassesMedicHealPerSec { get; set; } = 5f;
+        [Description("Сколько HP в секунду восстанавливает Медик союзникам в радиусе. 0 — пассивка отключена. Дефолт 2 HP/с — портировано из sosal-плагина (MTFMedic.HealAmount).")]
+        public float SquadClassesMedicHealPerSec { get; set; } = 2f;
 
         [Description("Множитель ИСХОДЯЩЕГО урона для Командира. 1.20 = +20% урона по всем целям.")]
         public float SquadClassesCommanderDamageMult { get; set; } = 1.20f;
-
-        [Description("Множитель ВХОДЯЩЕГО урона для Джаггернаута. 0.90 = −10% получаемого урона.")]
-        public float SquadClassesJuggernautIncomingMult { get; set; } = 0.90f;
     }
 }

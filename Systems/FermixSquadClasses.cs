@@ -16,12 +16,14 @@ namespace FermixAPI.Systems
     ///
     /// Концепция: при каждом RespawnedTeam-событии (NTF/Chaos-волна) каждому
     /// прибывшему игроку случайно (по приоритету и MaxPerWave) выдаётся один из
-    /// четырёх классов фракции. Каждый класс — это уникальный лоадаут плюс
-    /// пассивная способность:
+    /// четырёх классов фракции. Логика Медика и Джаггернаута портирована
+    /// из исходников «sosal»-плагина (MTFMedic / CIMedic / JuggernautSAT):
     /// <list type="bullet">
     ///   <item><b>Командир</b> — +20% исходящего урона союзникам.</item>
-    ///   <item><b>Медик</b> — лечит союзников в радиусе 6 м на 5 HP/с.</item>
-    ///   <item><b>Джаггернаут</b> — 200 HP и −10% входящего урона.</item>
+    ///   <item><b>Медик</b> — каждую секунду лечит союзников в радиусе на 2 HP
+    ///       (heal-coroutine из MTFMedicModule.HealingLoop / HealNearbyAllies).</item>
+    ///   <item><b>Джаггернаут</b> — 125 HP и Scale ×1.15, без damage-reduction
+    ///       (JuggernautSATModule.ConvertToJuggernautSAT).</item>
     ///   <item><b>Стрелок/Подрывник</b> — базовый класс без пассивки.</item>
     /// </list>
     ///
@@ -49,6 +51,7 @@ namespace FermixAPI.Systems
             public int MaxPerWave;
             public float MaxHealth;         // 0 — оставить дефолтное HP роли
             public float ArtificialHealth;  // 0 — не накидывать
+            public float Scale;             // 0 или 1 — без изменения; 1.15 — джаггернаут
             public ItemType[] Loadout;
             public SquadClassPassive Passive;
         }
@@ -83,44 +86,42 @@ namespace FermixAPI.Systems
             },
             new SquadClass
             {
-                Name = "Медик NTF",
-                Description = "Полевой медик. Возит на себе аптечки и " +
-                              "адреналин, обладает SCP-500. Пассивка: " +
-                              "<b>лечит союзников в радиусе 6 м на 5 HP/с</b>.",
+                Name = "МТФ-Медик",
+                Description = "Полевой медик. Каждую секунду лечит союзников " +
+                              "вокруг себя на 2 HP (радиус задаётся конфигом).",
                 Color = "8be3ff",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
                 Loadout = new[]
                 {
-                    ItemType.ArmorLight,
-                    ItemType.GunCOM18,
+                    ItemType.GunE11SR,
+                    ItemType.ArmorHeavy,
+                    ItemType.KeycardFacilityManager,
                     ItemType.Medkit,
                     ItemType.Medkit,
-                    ItemType.Adrenaline,
-                    ItemType.Adrenaline,
                     ItemType.SCP500,
-                    ItemType.KeycardMTFOperative,
-                    ItemType.Radio,
                 },
                 Passive = SquadClassPassive.Medic,
             },
             new SquadClass
             {
-                Name = "Джаггернаут NTF",
-                Description = "Тяжёлый штурмовик. Носит броню класса HEAVY и " +
-                              "Logicer. Пассивка: <b>200 HP</b> и " +
-                              "<b>−10% входящего урона</b>.",
-                Color = "ff8b8b",
+                Name = "Джаггернаут СБ",
+                Description = "Тяжёлый штурмовик. <b>125 HP</b>, размер ×1.15, " +
+                              "тяжёлая броня и FR-MG-0.",
+                Color = "8B4513",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
-                MaxHealth = 200f,
+                MaxHealth = 125f,
+                Scale = 1.15f,
                 Loadout = new[]
                 {
+                    ItemType.KeycardMTFPrivate,
+                    ItemType.GunFRMG0,
                     ItemType.ArmorHeavy,
-                    ItemType.GunLogicer,
-                    ItemType.GunRevolver,
+                    ItemType.Radio,
+                    ItemType.GrenadeFlash,
+                    ItemType.GrenadeFlash,
                     ItemType.Medkit,
-                    ItemType.KeycardMTFOperative,
                 },
                 Passive = SquadClassPassive.Juggernaut,
             },
@@ -172,43 +173,42 @@ namespace FermixAPI.Systems
             },
             new SquadClass
             {
-                Name = "Медик Хаоса",
-                Description = "Полевой санитар Хаоса. Аптечки, адреналин, " +
-                              "SCP-500. Пассивка: <b>лечит союзников в " +
-                              "радиусе 6 м на 5 HP/с</b>.",
+                Name = "ПХ-Медик",
+                Description = "Полевой санитар Хаоса. Каждую секунду лечит " +
+                              "союзников вокруг себя на 2 HP.",
                 Color = "8be3ff",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
                 Loadout = new[]
                 {
-                    ItemType.ArmorLight,
-                    ItemType.GunCOM18,
+                    ItemType.GunE11SR,
+                    ItemType.ArmorHeavy,
+                    ItemType.KeycardFacilityManager,
                     ItemType.Medkit,
                     ItemType.Medkit,
-                    ItemType.Adrenaline,
-                    ItemType.Adrenaline,
                     ItemType.SCP500,
-                    ItemType.Radio,
                 },
                 Passive = SquadClassPassive.Medic,
             },
             new SquadClass
             {
                 Name = "Джаггернаут Хаоса",
-                Description = "Штурмовой танк Хаоса. Тяжёлая броня, дробовик и " +
-                              "револьвер. Пассивка: <b>200 HP</b> и " +
-                              "<b>−10% входящего урона</b>.",
-                Color = "ff8b8b",
+                Description = "Штурмовой танк Хаоса. <b>125 HP</b>, размер ×1.15, " +
+                              "тяжёлая броня и FR-MG-0.",
+                Color = "8B4513",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
-                MaxHealth = 200f,
+                MaxHealth = 125f,
+                Scale = 1.15f,
                 Loadout = new[]
                 {
-                    ItemType.ArmorHeavy,
-                    ItemType.GunShotgun,
-                    ItemType.GunRevolver,
-                    ItemType.Medkit,
                     ItemType.KeycardChaosInsurgency,
+                    ItemType.GunFRMG0,
+                    ItemType.ArmorHeavy,
+                    ItemType.Radio,
+                    ItemType.GrenadeFlash,
+                    ItemType.GrenadeFlash,
+                    ItemType.Medkit,
                 },
                 Passive = SquadClassPassive.Juggernaut,
             },
@@ -398,6 +398,11 @@ namespace FermixAPI.Systems
                     p.ArtificialHealth = Mathf.Max(p.ArtificialHealth, cls.ArtificialHealth);
                 }
 
+                // Сбрасываем scale с прошлой роли и при необходимости ставим новый.
+                p.Scale = Vector3.one;
+                if (cls.Scale > 0f && Math.Abs(cls.Scale - 1f) > 0.001f)
+                    p.Scale = new Vector3(cls.Scale, cls.Scale, cls.Scale);
+
                 p.CustomInfo = $"<color=#{cls.Color}>{cls.FactionLabel} — {cls.Name}</color>";
 
                 lock (_lock)
@@ -436,7 +441,7 @@ namespace FermixAPI.Systems
             if (FermixCore.Config?.SquadClassesEnabled != true) return;
 
             float radius = Mathf.Max(0.5f, FermixCore.Config?.SquadClassesMedicRadius ?? 6f);
-            float perSec = Mathf.Max(0f, FermixCore.Config?.SquadClassesMedicHealPerSec ?? 5f);
+            float perSec = Mathf.Max(0f, FermixCore.Config?.SquadClassesMedicHealPerSec ?? 2f);
             if (perSec <= 0f) return;
 
             KeyValuePair<string, PassiveAssignment>[] snapshot;
@@ -483,18 +488,8 @@ namespace FermixAPI.Systems
                 }
             }
 
-            if (ev.Player?.UserId != null)
-            {
-                lock (_lock)
-                {
-                    if (_passives.TryGetValue(ev.Player.UserId, out var tgt)
-                        && tgt.Passive == SquadClassPassive.Juggernaut)
-                    {
-                        float mult = FermixCore.Config?.SquadClassesJuggernautIncomingMult ?? 0.90f;
-                        dmg *= Mathf.Max(0.01f, mult);
-                    }
-                }
-            }
+            // sosal-портированный Джаггернаут не имеет damage-reduction —
+            // только увеличенное HP и scale. Получаемый урон не модифицируем.
 
             if (Math.Abs(dmg - ev.Amount) > 0.01f) ev.Amount = dmg;
         }
