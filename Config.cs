@@ -120,6 +120,12 @@ namespace FermixAPI
         [Description("Задержка после старта раунда перед спавном SCP-1344 (секунды).")]
         public float ScrambleSpawnDelay { get; set; } = 4f;
 
+        [Description("Длительность активной фазы SCRAMBLE (секунды). После этого автодеактивация и кулдаун.")]
+        public float ScrambleActiveDuration { get; set; } = 30f;
+
+        [Description("Кулдаун после деактивации SCRAMBLE до следующей активации (секунды). По умолчанию 120с (2 минуты).")]
+        public float ScrambleCooldown { get; set; } = 120f;
+
         // ── FermixCallvote ──────────────────────────────────────────
 
         [Description("Включить голосования игроков (.cv kick/restart/ask + .vote yes/no).")]
@@ -156,8 +162,8 @@ namespace FermixAPI
         [Description("Разрешать только ОДНУ G.O.C.-волну за раунд. Остальные MTF-волны после неё будут обычными. false — каждая MTF-волна перехватывается по собственному роллу.")]
         public bool GocOneWavePerRound { get; set; } = true;
 
-        [Description("Сколько оперативников брать из спектаторов, если команда `goc wave` вызвана, когда живых MTF нет. Спавнятся в MTF-точке.")]
-        public int GocManualWaveSize { get; set; } = 5;
+        [Description("Сколько оперативников брать из спектаторов, если команда `goc wave` вызвана, когда живых MTF нет. 0 = ВСЕ спектаторы (рекомендуется), N = максимум N. Спавнятся в MTF-точке.")]
+        public int GocManualWaveSize { get; set; } = 0;
 
         [Description("CASSIE-phonemes для объявления прибытия G.O.C.. Пустое значение — используется встроенный текст. CASSIE говорит английскими фонемами — русский перевод идёт отдельными субтитрами.")]
         public string GocCassiePhonemes { get; set; } = string.Empty;
@@ -216,5 +222,29 @@ namespace FermixAPI
 
         [Description("Интервал апдейта поворота прожектора NVG за камерой в секундах. Дефолт 0.1.")]
         public float NvgTrackInterval { get; set; } = 0.1f;
+
+        // ── FermixInfinity (бесконечные припасы / радио) ────────────
+
+        [Description("Включить FermixInfinity: рация без разряда, авто-докид магазина при перезарядке, запрет дропа/подбора патронов, очистка патронов при наручниках. Портировано из Hazbin.NoRules.InfinityStuff.")]
+        public bool InfinityStuffEnabled { get; set; } = true;
+
+        // ── FermixHitmarkers ────────────────────────────────────────
+
+        [Description("Включить хит-маркеры: при попадании по игроку показывать атакующему урон, при убийстве — пометку «Убит». Использует FermixHintStack (id-based).")]
+        public bool HitmarkersEnabled { get; set; } = true;
+
+        // ── FermixPlayerXp ──────────────────────────────────────────
+
+        [Description("Включить систему опыта/уровней (FermixPlayerXp). Сами уровни и стоимости настраиваются ОТДЕЛЬНЫМ конфигом FermixAPI/levels.yml.")]
+        public bool PlayerXpEnabled { get; set; } = true;
+
+        // ── FermixScpSwap ───────────────────────────────────────────
+
+        [Description("Включить .swap <SCP> для смены SCP-роли в первые секунды раунда. Портировано из Hazbin.NoRules.ScpSwap.")]
+        public bool ScpSwapEnabled { get; set; } = true;
+
+        [Description("Окно (в секундах) с начала раунда, в течение которого можно использовать .swap. По умолчанию 90с — как в Hazbin.")]
+        public float ScpSwapWindowSeconds { get; set; } = 90f;
+
     }
 }

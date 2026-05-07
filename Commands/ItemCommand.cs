@@ -21,6 +21,7 @@ namespace FermixAPI.Commands
             new(StringComparer.OrdinalIgnoreCase)
             {
                 ["nvg"] = ("Прибор ночного видения (FermixNvg)", FermixNvg.GiveTo),
+                ["scramble"] = ("SCRAMBLE-очки SCP-1344 (FermixScramble)", FermixScramble.GiveTo),
             };
 
         public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
