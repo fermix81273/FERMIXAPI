@@ -3,30 +3,31 @@ using System.Collections.Generic;
 using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Features;
+using Exiled.API.Features.Core.UserSettings;
 using Exiled.API.Features.Items;
 using Exiled.API.Features.Pickups;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Scp1344;
 using FermixAPI.Core;
 using InventorySystem.Items.Usables.Scp1344;
-using MEC;
-using Mirror;
 using UnityEngine;
-using ToyLight = Exiled.API.Features.Toys.Light;
 
 namespace FermixAPI.Systems
 {
     /// <summary>
-    /// Прибор ночного видения (NVG) — порт MS-crew/NightVisionGoggles (1.3.0)
-    /// под FermixAPI без зависимости от Exiled.CustomItems.
+    /// Прибор ночного видения (NVG) — кастомный предмет на базе SCP-1344.
     ///
-    /// Базовый предмет — SCP-1344, но с особым serial-тегом. При активации:
-    /// • применяет эффект <c>EffectType.NightVision</c>;
-    /// • снимает «слепящий» эффект SCP-1344 (Remove1344Effect — конфигурится);
-    /// • создаёт зелёный <see cref="ToyLight"/>-прожектор, прикреплённый к
-    ///   камере игрока (через <see cref="MEC.Timing.RunCoroutine"/>);
-    /// • прячет прожектор от всех, кроме носителя и его зрителей.
-    /// При снятии всё гасится в обратном порядке.
+    /// v2.6.1: НЕ зависит от ванильной активации SCP-1344.
+    /// • Ивент <see cref="Exiled.Events.Handlers.Scp1344.ChangingStatus"/> для
+    ///   NVG-помеченного предмета принудительно отменяется (IsAllowed=false),
+    ///   так что ванильное «надевание очков» физически отключено.
+    /// • Активация — через отдельный SSS-бинд (видно в меню Server Specific
+    ///   Settings: «FermixAPI: NVG»). По нажатию переключается включение.
+    /// • При активации игрок получает <c>EffectType.NightVision</c> — это
+    ///   чисто клиентский эффект яркого зрения, никакого внешнего ToyLight
+    ///   не создаётся, и другие игроки в комнате никакого свечения не видят.
+    /// • Дроп в мире остаётся подсвеченным через FermixGlow, чтобы предмет
+    ///   на полу был заметен.
     /// </summary>
     public static class FermixNvg
     {
@@ -42,13 +43,16 @@ namespace FermixAPI.Systems
 
         private const string GlowId = "fermix_nvg";
 
+        // SSS bind id (>=322 чтобы не пересекаться с FermixInput-дефолтами 300-306,
+        // FermixScp106Bindings 308/320 и пользовательскими 307+).
+        private const int NvgHeaderId = 309;
+        private const int NvgToggleKeyId = 322;
+
         private static readonly object _lock = new();
         private static readonly HashSet<ushort> _nvgSerials = new();
+        private static readonly HashSet<string> _activeUsers = new(StringComparer.Ordinal);
 
-        // userId → light/коrutine
-        private static readonly Dictionary<string, ToyLight> _lights = new(StringComparer.Ordinal);
-        private static readonly Dictionary<string, CoroutineHandle> _trackHandles = new(StringComparer.Ordinal);
-
+        private static readonly List<SettingBase> _ownSettings = new();
         private static bool _initialized;
 
         public static void Initialize()
@@ -59,7 +63,9 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundEnd += OnRoundEnd;
             FermixEvents.OnPlayerLeave += OnPlayerLeave;
             FermixEvents.OnRoleChange += OnRoleChange;
-            Exiled.Events.Handlers.Scp1344.ChangedStatus += OnChangedStatus;
+            Exiled.Events.Handlers.Scp1344.ChangingStatus += OnChangingStatus;
+            Exiled.Events.Handlers.Player.ItemRemoved += OnItemRemoved;
+            Exiled.Events.Handlers.Player.Died += OnPlayerDied;
 
             FermixGlow.AddGlow(GlowId,
                 serial => { lock (_lock) return _nvgSerials.Contains(serial); },
@@ -68,6 +74,44 @@ namespace FermixAPI.Systems
                 range: 3f,
                 pulseEffect: true,
                 pulseSpeed: 1.0f);
+
+            // SSS bind для активации NVG. Регистрируем СВОЮ секцию (не лезем
+            // в FermixInput-дефолты), чтобы кнопка появилась в SSS как
+            // «FermixAPI: NVG» отдельным блоком.
+            try
+            {
+                if (FermixInput.IsInitialized)
+                {
+                    var header = new HeaderSetting(NvgHeaderId, "FermixAPI: NVG", string.Empty, false);
+                    _ownSettings.Add(header);
+                    _ownSettings.Add(new KeybindSetting(
+                        id: NvgToggleKeyId,
+                        label: "[NVG] Включить/выключить ночное видение",
+                        suggested: KeyCode.B,
+                        preventInteractionOnGUI: false,
+                        allowSpectatorTrigger: false,
+                        hintDescription: "Активирует или выключает прибор ночного видения. " +
+                                         "Очки должны быть в инвентаре.",
+                        collectionId: byte.MaxValue,
+                        header: header,
+                        onChanged: (player, setting) =>
+                        {
+                            if (setting is KeybindSetting kb && kb.IsPressed)
+                                ToggleNvg(player);
+                        }));
+                    FermixInput.DropExistingByIds(new[] { NvgHeaderId, NvgToggleKeyId });
+                    SettingBase.Register(_ownSettings);
+                }
+                else
+                {
+                    FermixLog.Warn("FermixNvg: FermixInput не инициализирован, SSS-бинд NVG не зарегистрирован.");
+                }
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Error($"FermixNvg: не удалось зарегистрировать SSS keybind: {ex.Message}");
+                _ownSettings.Clear();
+            }
 
             _initialized = true;
         }
@@ -80,28 +124,34 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundEnd -= OnRoundEnd;
             FermixEvents.OnPlayerLeave -= OnPlayerLeave;
             FermixEvents.OnRoleChange -= OnRoleChange;
-            Exiled.Events.Handlers.Scp1344.ChangedStatus -= OnChangedStatus;
+            Exiled.Events.Handlers.Scp1344.ChangingStatus -= OnChangingStatus;
+            Exiled.Events.Handlers.Player.ItemRemoved -= OnItemRemoved;
+            Exiled.Events.Handlers.Player.Died -= OnPlayerDied;
 
             FermixGlow.RemoveGlow(GlowId);
-            DestroyAllLights();
+            DisableForAll();
             lock (_lock) _nvgSerials.Clear();
+
+            try
+            {
+                if (_ownSettings.Count > 0) SettingBase.Unregister(settings: _ownSettings);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixNvg.Shutdown unregister: {ex.Message}");
+            }
+            _ownSettings.Clear();
 
             _initialized = false;
         }
 
         // ── публичный API ───────────────────────────────────────────
 
-        /// <summary>
-        /// Проверить, является ли SCP-1344 с данным serial — нашим NVG.
-        /// </summary>
         public static bool IsNvgSerial(ushort serial)
         {
             lock (_lock) return _nvgSerials.Contains(serial);
         }
 
-        /// <summary>
-        /// Создать NVG-предмет в инвентаре игрока (для команды <c>.fermix give</c>).
-        /// </summary>
         public static bool GiveTo(Player p)
         {
             if (p == null || !p.IsConnected) return false;
@@ -112,8 +162,9 @@ namespace FermixAPI.Systems
                 lock (_lock) _nvgSerials.Add(item.Serial);
                 FermixHint.SendColored(p,
                     $"<size=110%><b><color=#33ff66>Прибор ночного видения</color></b></size>\n" +
-                    "Используйте предмет, чтобы активировать ночное видение.",
-                    "#33ff66", 4f);
+                    "Чтобы активировать — нажмите бинд из меню SSS «FermixAPI: NVG»\n" +
+                    "(по умолчанию <b>B</b>). Надевание физических очков отключено.",
+                    "#33ff66", 5f);
                 return true;
             }
             catch (Exception ex)
@@ -123,9 +174,6 @@ namespace FermixAPI.Systems
             }
         }
 
-        /// <summary>
-        /// Заспавнить NVG-предмет в указанной точке.
-        /// </summary>
         public static bool SpawnAt(Vector3 pos)
         {
             try
@@ -152,7 +200,7 @@ namespace FermixAPI.Systems
 
         private static void OnRoundEnd(Exiled.Events.EventArgs.Server.RoundEndedEventArgs _)
         {
-            DestroyAllLights();
+            DisableForAll();
             lock (_lock) _nvgSerials.Clear();
         }
 
@@ -199,27 +247,63 @@ namespace FermixAPI.Systems
 
         // ── core: SCP-1344 status hook ──────────────────────────────
 
-        private static void OnChangedStatus(ChangedStatusEventArgs ev)
+        // Отменяем ванильное «надевание» очков для NVG-помеченных предметов.
+        // Игрок физически не сможет активировать SCP-1344 как очки — только
+        // через наш SSS-бинд (см. ToggleNvg). Обычные SCP-1344, которые не
+        // помечены как NVG, продолжают работать как ваниль.
+        private static void OnChangingStatus(ChangingStatusEventArgs ev)
         {
             if (ev?.Player == null || ev.Scp1344 == null) return;
             if (!IsNvgSerial(ev.Scp1344.Serial)) return;
 
-            switch (ev.Scp1344Status)
+            // Отмена только для перехода в Activating/Active (попытка
+            // надеть). Завершающие переходы (Idle/Dropping) не блокируем,
+            // чтобы не залипало внутреннее state.
+            if (ev.Scp1344StatusNew == Scp1344Status.Activating
+                || ev.Scp1344StatusNew == Scp1344Status.Active)
             {
-                case Scp1344Status.Active:
-                    EquipNvg(ev.Player);
-                    break;
-                case Scp1344Status.Idle:
-                    UnequipNvg(ev.Player);
-                    break;
+                ev.IsAllowed = false;
             }
         }
 
-        private static void EquipNvg(Player p)
+        // ── активация по биндy ──────────────────────────────────────
+
+        private static void ToggleNvg(Player p)
+        {
+            if (p == null || !p.IsConnected || !p.IsAlive) return;
+            if (p.UserId == null) return;
+
+            // Должен быть NVG в инвентаре (любой ItemType.SCP1344 с нашим serial).
+            bool hasNvg = false;
+            foreach (var it in p.Items)
+            {
+                if (it == null || it.Type != ItemType.SCP1344) continue;
+                if (!IsNvgSerial(it.Serial)) continue;
+                hasNvg = true;
+                break;
+            }
+
+            if (!hasNvg)
+            {
+                FermixHint.Send(p,
+                    "<color=#ff8b8b>В инвентаре нет прибора ночного видения.</color>",
+                    2.5f);
+                return;
+            }
+
+            string id = p.UserId;
+            bool nowActive;
+            lock (_activeUsers) nowActive = !_activeUsers.Contains(id);
+
+            if (nowActive)
+                EnableNvg(p);
+            else
+                DisableNvg(p);
+        }
+
+        private static void EnableNvg(Player p)
         {
             if (p?.UserId == null) return;
-            string id = p.UserId;
-
             try
             {
                 p.EnableEffect(EffectType.NightVision,
@@ -228,98 +312,46 @@ namespace FermixAPI.Systems
                 if (FermixCore.Config?.NvgRemove1344Effect == true)
                     p.DisableEffect(EffectType.Scp1344);
 
-                // Снимаем старый свет если был.
-                DestroyLightFor(id);
+                lock (_activeUsers) _activeUsers.Add(p.UserId);
 
-                Vector3 camPos = p.CameraTransform != null ? p.CameraTransform.position : p.Position;
-                Vector3 camRot = p.CameraTransform != null ? p.CameraTransform.eulerAngles : p.Rotation.eulerAngles;
-
-                var light = ToyLight.Create(camPos, camRot, null, spawn: true,
-                    color: new Color(0f, 1f, 0f, 1f));
-
-                light.Range = FermixCore.Config?.NvgLightRange ?? 50f;
-                light.Intensity = FermixCore.Config?.NvgLightIntensity ?? 4f;
-                light.SpotAngle = FermixCore.Config?.NvgLightSpotAngle ?? 90f;
-                light.InnerSpotAngle = FermixCore.Config?.NvgLightInnerAngle ?? 0f;
-                light.LightType = UnityEngine.LightType.Spot;
-                light.ShadowType = LightShadows.None;
-
-                if (p.Transform != null)
-                    light.Transform.SetParent(p.Transform, worldPositionStays: true);
-
-                lock (_lights) _lights[id] = light;
-
-                // Прячем прожектор от всех, кроме самого носителя и его зрителей.
-                HideLightFromOthers(p, light);
-
-                if (FermixCore.Config?.NvgTrackCamera == true)
-                {
-                    var handle = Timing.RunCoroutine(TrackCameraRotation(id));
-                    lock (_trackHandles) _trackHandles[id] = handle;
-                }
+                FermixHint.SendColored(p,
+                    "<color=#33ff66><b>NVG активирован</b></color>\n" +
+                    "Зрение усилено. Окружающие никакого свечения не видят.",
+                    "#33ff66", 2.5f);
             }
             catch (Exception ex)
             {
-                FermixLog.Warn($"FermixNvg.EquipNvg: {ex.Message}");
+                FermixLog.Warn($"FermixNvg.EnableNvg: {ex.Message}");
             }
         }
 
-        private static void UnequipNvg(Player p)
+        private static void DisableNvg(Player p)
         {
             if (p?.UserId == null) return;
-            string id = p.UserId;
-
             try
             {
                 p.DisableEffect(EffectType.NightVision);
-                StopTrackingFor(id);
-                DestroyLightFor(id);
+                lock (_activeUsers) _activeUsers.Remove(p.UserId);
+
+                FermixHint.SendColored(p,
+                    "<color=#aaaaaa>NVG выключен.</color>",
+                    "#aaaaaa", 2f);
             }
             catch (Exception ex)
             {
-                FermixLog.Warn($"FermixNvg.UnequipNvg: {ex.Message}");
+                FermixLog.Warn($"FermixNvg.DisableNvg: {ex.Message}");
             }
         }
 
-        private static void HideLightFromOthers(Player wearer, ToyLight light)
+        private static void DisableForAll()
         {
-            if (light?.Base == null) return;
-            var netId = light.Base.netIdentity;
-            if (netId == null) return;
-
-            foreach (var ply in Player.List)
+            string[] users;
+            lock (_activeUsers) users = _activeUsers.ToArray();
+            foreach (var id in users)
             {
-                if (ply == null || ply == wearer || !ply.IsConnected) continue;
-                // Зрители носителя видят свет — не прячем от них.
-                if (wearer.CurrentSpectatingPlayers != null
-                    && wearer.CurrentSpectatingPlayers.Contains(ply)) continue;
-
-                try
-                {
-                    ply.Connection?.Send(new ObjectHideMessage { netId = netId.netId });
-                }
-                catch { /* ignore — клиент может уже быть отключен */ }
-            }
-        }
-
-        private static IEnumerator<float> TrackCameraRotation(string userId)
-        {
-            float interval = Mathf.Max(0.02f, FermixCore.Config?.NvgTrackInterval ?? 0.1f);
-            while (true)
-            {
-                yield return Timing.WaitForSeconds(interval);
-                ToyLight light;
-                lock (_lights) _lights.TryGetValue(userId, out light);
-                if (light == null) yield break;
-
-                var p = Player.Get(userId);
-                if (p == null || !p.IsConnected || !p.IsAlive) yield break;
-                if (p.CameraTransform == null) continue;
-
-                float pitch = p.CameraTransform.localRotation.eulerAngles.x;
-                Quaternion target = Quaternion.AngleAxis(pitch, Vector3.right);
-                if (light.Transform.localRotation != target)
-                    light.Transform.localRotation = target;
+                var p = Player.Get(id);
+                if (p != null) DisableNvg(p);
+                else lock (_activeUsers) _activeUsers.Remove(id);
             }
         }
 
@@ -328,49 +360,50 @@ namespace FermixAPI.Systems
         private static void OnPlayerLeave(LeftEventArgs ev)
         {
             if (ev?.Player?.UserId == null) return;
-            UnequipNvg(ev.Player);
+            lock (_activeUsers) _activeUsers.Remove(ev.Player.UserId);
         }
 
         private static void OnRoleChange(ChangingRoleEventArgs ev)
         {
             if (ev?.Player?.UserId == null) return;
-            UnequipNvg(ev.Player);
+            // При смене роли гасим NVG (новая роль может быть SCP / спектатор).
+            DisableNvg(ev.Player);
         }
 
-        private static void StopTrackingFor(string userId)
+        // Когда игрок выбрасывает / отдаёт / иначе теряет предмет — если
+        // удалённый предмет был NVG-помеченным SCP-1344 и в инвентаре больше
+        // нет ни одного NVG-предмета, гасим эффект NightVision.
+        private static void OnItemRemoved(Exiled.Events.EventArgs.Player.ItemRemovedEventArgs ev)
         {
-            lock (_trackHandles)
+            var p = ev?.Player;
+            if (p?.UserId == null) return;
+            if (ev.Item == null || ev.Item.Type != ItemType.SCP1344) return;
+            if (!IsNvgSerial(ev.Item.Serial)) return;
+
+            // Проверяем: остался ли в инвентаре ещё хоть один NVG-предмет.
+            // Если нет — снимаем эффект.
+            bool stillHasNvg = false;
+            foreach (var it in p.Items)
             {
-                if (_trackHandles.TryGetValue(userId, out var h) && h.IsRunning)
-                    Timing.KillCoroutines(h);
-                _trackHandles.Remove(userId);
+                if (it == null || it.Type != ItemType.SCP1344) continue;
+                if (it.Serial == ev.Item.Serial) continue;
+                if (!IsNvgSerial(it.Serial)) continue;
+                stillHasNvg = true;
+                break;
+            }
+
+            if (!stillHasNvg)
+            {
+                bool wasActive;
+                lock (_activeUsers) wasActive = _activeUsers.Contains(p.UserId);
+                if (wasActive) DisableNvg(p);
             }
         }
 
-        private static void DestroyLightFor(string userId)
+        private static void OnPlayerDied(Exiled.Events.EventArgs.Player.DiedEventArgs ev)
         {
-            ToyLight light;
-            lock (_lights)
-            {
-                if (!_lights.TryGetValue(userId, out light)) return;
-                _lights.Remove(userId);
-            }
-            try
-            {
-                if (light?.GameObject != null) NetworkServer.Destroy(light.GameObject);
-            }
-            catch { /* ignore */ }
-        }
-
-        private static void DestroyAllLights()
-        {
-            string[] ids;
-            lock (_lights) ids = _lights.Keys.ToArray();
-            foreach (var id in ids)
-            {
-                StopTrackingFor(id);
-                DestroyLightFor(id);
-            }
+            if (ev?.Player?.UserId == null) return;
+            DisableNvg(ev.Player);
         }
     }
 }

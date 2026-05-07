@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Exiled.API.Features;
 using Exiled.API.Features.Core.UserSettings;
 using FermixAPI.Core;
 using MEC;
 using UnityEngine;
+using UserSettings.ServerSpecific;
 
 namespace FermixAPI.Systems
 {
@@ -173,7 +175,37 @@ namespace FermixAPI.Systems
             _settings.Add(MakeKeybind(F,   "F",    KeyCode.F,         header, "Бинд для действия F"));
             _settings.Add(MakeKeybind(T,   "T",    KeyCode.T,         header, "Бинд для действия T"));
 
+            // Идемпотентная регистрация: если EXILED перезагружал сборку, в
+            // ServerSpecificSettingsSync.DefinedSettings мог остаться предыдущий
+            // экземпляр наших настроек — выкидываем дубликаты по id, иначе в
+            // SSS-меню игроку показывается «FERMIXAPI: БИНДЫ ДЕЙСТВИЙ» дважды.
+            DropExistingByIds(_settings.Select(s => s.Id));
             SettingBase.Register(_settings);
+        }
+
+        /// <summary>
+        /// Удалить из <see cref="ServerSpecificSettingsSync.DefinedSettings"/>
+        /// все настройки, чей id входит в указанный набор. Используется перед
+        /// повторной регистрацией, чтобы не получать дубликаты в SSS-меню.
+        /// </summary>
+        internal static void DropExistingByIds(IEnumerable<int> ids)
+        {
+            try
+            {
+                var idSet = new HashSet<int>(ids);
+                var existing = ServerSpecificSettingsSync.DefinedSettings;
+                if (existing == null || existing.Length == 0) return;
+
+                var filtered = existing.Where(s => s != null && !idSet.Contains(s.SettingId)).ToArray();
+                if (filtered.Length == existing.Length) return;
+
+                ServerSpecificSettingsSync.DefinedSettings = filtered;
+                SettingBase.SendToAll();
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixInput.DropExistingByIds: {ex.Message}");
+            }
         }
 
         /// <summary>

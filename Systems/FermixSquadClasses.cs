@@ -66,9 +66,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "Командир NTF",
-                Description = "Командир оперативной группы. Координирует звено, " +
-                              "несёт тяжёлое штурмовое снаряжение и капитанский " +
-                              "ключ. Пассивка: <b>+20% исходящего урона</b>.",
+                Description = "Командир оперативной группы. Капитанский ключ.\n" +
+                              "Пассивка: <b>+20% исходящего урона</b>.",
                 Color = "ffd24a",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
@@ -88,8 +87,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "МТФ-Медик",
-                Description = "Полевой медик. Каждую секунду лечит союзников " +
-                              "вокруг себя на 2 HP (радиус задаётся конфигом).",
+                Description = "Полевой медик.\n" +
+                              "Пассивка: лечит союзников вокруг себя на 2 HP в секунду.",
                 Color = "8be3ff",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 1,
@@ -129,9 +128,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "Стрелок NTF",
-                Description = "Базовый оперативник. Универсальное штурмовое " +
-                              "снаряжение. Пассивных способностей нет — " +
-                              "сила в дисциплине и количестве.",
+                Description = "Базовый оперативник.\n" +
+                              "Универсальное штурмовое снаряжение, без пассивки.",
                 Color = "8effa3",
                 FactionLabel = "Mobile Task Force — NTF",
                 MaxPerWave = 99,
@@ -154,9 +152,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "Командир Хаоса",
-                Description = "Лидер ячейки Хаоса. Координирует штурм, " +
-                              "имеет ключ Insurgency и AK. Пассивка: " +
-                              "<b>+20% исходящего урона</b>.",
+                Description = "Лидер ячейки Хаоса. Ключ Insurgency и AK.\n" +
+                              "Пассивка: <b>+20% исходящего урона</b>.",
                 Color = "ffd24a",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
@@ -175,8 +172,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "ПХ-Медик",
-                Description = "Полевой санитар Хаоса. Каждую секунду лечит " +
-                              "союзников вокруг себя на 2 HP.",
+                Description = "Полевой санитар Хаоса.\n" +
+                              "Пассивка: лечит союзников вокруг себя на 2 HP в секунду.",
                 Color = "8be3ff",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 1,
@@ -216,9 +213,8 @@ namespace FermixAPI.Systems
             new SquadClass
             {
                 Name = "Подрывник Хаоса",
-                Description = "Базовый боец Хаоса. AK, две HE-гранаты и " +
-                              "флэш для зачистки помещений. Пассивных " +
-                              "способностей нет.",
+                Description = "Базовый боец Хаоса.\n" +
+                              "AK, две HE-гранаты и флэш. Без пассивки.",
                 Color = "8effa3",
                 FactionLabel = "Chaos Insurgency",
                 MaxPerWave = 99,
@@ -265,10 +261,14 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundStart += OnRoundStart;
             FermixEvents.OnRoundEnd += OnRoundEnd;
             FermixEvents.OnPlayerLeave += OnPlayerLeave;
-            FermixEvents.OnPlayerHurt += OnPlayerHurt;
             FermixEvents.OnPlayerDied += OnPlayerDied;
             FermixEvents.OnRoleChange += OnRoleChange;
             Exiled.Events.Handlers.Server.RespawnedTeam += OnRespawnedTeam;
+            // OnPlayerHurt-хук намеренно отключён в v2.6.1: после рефакторинга
+            // Commander +20% damage множитель оставлен только в виде
+            // конфиг-параметра, но при подписке на Hurt у нас были регрессии
+            // (урон не проходил по wave-spawned игрокам). Если возвращаем —
+            // обязательно с unit-тестом.
 
             _initialized = true;
         }
@@ -280,7 +280,6 @@ namespace FermixAPI.Systems
             FermixEvents.OnRoundStart -= OnRoundStart;
             FermixEvents.OnRoundEnd -= OnRoundEnd;
             FermixEvents.OnPlayerLeave -= OnPlayerLeave;
-            FermixEvents.OnPlayerHurt -= OnPlayerHurt;
             FermixEvents.OnPlayerDied -= OnPlayerDied;
             FermixEvents.OnRoleChange -= OnRoleChange;
             Exiled.Events.Handlers.Server.RespawnedTeam -= OnRespawnedTeam;
@@ -467,8 +466,9 @@ namespace FermixAPI.Systems
                     p.ArtificialHealth = Mathf.Max(p.ArtificialHealth, cls.ArtificialHealth);
                 }
 
-                // Сбрасываем scale с прошлой роли и при необходимости ставим новый.
-                p.Scale = Vector3.one;
+                // Scale меняем ТОЛЬКО если у класса явно задан кастомный масштаб.
+                // Безусловный сброс p.Scale = Vector3.one на каждом Apply ломал
+                // hit-rate у SCP по wave-spawned игрокам (наблюдалось в v2.6.0).
                 if (cls.Scale > 0f && Math.Abs(cls.Scale - 1f) > 0.001f)
                     p.Scale = new Vector3(cls.Scale, cls.Scale, cls.Scale);
 
@@ -603,7 +603,13 @@ namespace FermixAPI.Systems
         }
 
         // ── passive: damage scaling ─────────────────────────────────
-
+        // Метод намеренно не подписан на FermixEvents.OnPlayerHurt в v2.6.1.
+        // Раньше при подписке у нас наблюдалась регрессия: урон не проходил
+        // по wave-spawned игрокам (NTF/Chaos/GOC), включая SCP-вход. Чтобы
+        // не блокировать урон ни при каких условиях, OnPlayerHurt сейчас
+        // мёртвый код — оставлен для истории и возможного возврата в будущем
+        // (тогда обязательно с unit-тестом, что ev.Amount никогда не падает
+        // ниже исходного без явной passive у атакующего).
         private static void OnPlayerHurt(HurtingEventArgs ev)
         {
             if (FermixCore.Config?.SquadClassesEnabled != true) return;
@@ -623,9 +629,6 @@ namespace FermixAPI.Systems
                     }
                 }
             }
-
-            // sosal-портированный Джаггернаут не имеет damage-reduction —
-            // только увеличенное HP и scale. Получаемый урон не модифицируем.
 
             if (Math.Abs(dmg - ev.Amount) > 0.01f) ev.Amount = dmg;
         }
