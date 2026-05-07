@@ -323,6 +323,64 @@ namespace FermixAPI.Systems
             StopMedicHealing(p.UserId);
         }
 
+        /// <summary>
+        /// Перечислить все имена кастомных классов для команды
+        /// <c>.fermix role list</c>.
+        /// </summary>
+        public static IEnumerable<string> ListAllClassNames()
+        {
+            foreach (var c in NtfPool) yield return c.Name;
+            foreach (var c in ChaosPool) yield return c.Name;
+        }
+
+        /// <summary>
+        /// Найти и применить класс к игроку по «короткому» алиасу
+        /// (<c>medic</c>, <c>jugger</c>/<c>juggernaut</c>, <c>commander</c>,
+        /// <c>rifleman</c>/<c>none</c>) с учётом текущей фракции игрока.
+        /// </summary>
+        public static bool ApplyRoleByAlias(Player p, string alias, out string error)
+        {
+            error = null;
+            if (p == null || !p.IsConnected) { error = "Игрок не найден или оффлайн."; return false; }
+            if (!p.IsAlive) { error = "Игрок мёртв — сначала заспавни."; return false; }
+            if (string.IsNullOrWhiteSpace(alias)) { error = "Не указан класс."; return false; }
+
+            var team = p.Role?.Team;
+            List<SquadClass> pool;
+            Func<Player, bool> mate;
+            if (team == Team.FoundationForces)
+            {
+                pool = NtfPool;
+                mate = ally => ally?.Role?.Team == Team.FoundationForces;
+            }
+            else if (team == Team.ChaosInsurgency)
+            {
+                pool = ChaosPool;
+                mate = ally => ally?.Role?.Team == Team.ChaosInsurgency;
+            }
+            else
+            {
+                error = "Игрок не в NTF и не в Chaos. Сначала смени ему фракцию.";
+                return false;
+            }
+
+            SquadClassPassive? wantedPassive = alias.ToLowerInvariant() switch
+            {
+                "medic" or "медик" => SquadClassPassive.Medic,
+                "jugger" or "juggernaut" or "джагг" or "джаггернаут" => SquadClassPassive.Juggernaut,
+                "commander" or "командир" => SquadClassPassive.Commander,
+                "rifleman" or "none" or "стрелок" or "подрывник" => SquadClassPassive.None,
+                _ => null,
+            };
+            if (wantedPassive == null) { error = $"Неизвестный класс '{alias}'. Доступно: medic, jugger, commander, rifleman."; return false; }
+
+            var cls = pool.FirstOrDefault(c => c.Passive == wantedPassive);
+            if (cls == null) { error = $"В пуле {team} нет класса '{alias}'."; return false; }
+
+            Apply(p, cls, mate);
+            return true;
+        }
+
         // ── core: assignment on respawn ─────────────────────────────
 
         private static void OnRespawnedTeam(RespawnedTeamEventArgs ev)
