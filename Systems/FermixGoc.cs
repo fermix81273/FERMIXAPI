@@ -476,14 +476,21 @@ namespace FermixAPI.Systems
                 // через временный спавн в МТФ-точке (Role.Set NtfPrivate ⇒
                 // игра ставит их на МТФ-спавн, потом мы переключаем в Tutorial,
                 // сохранив позицию).
-                int desired = Mathf.Clamp(FermixCore.Config?.GocManualWaveSize ?? 5, 1, 15);
+                // GocManualWaveSize:
+                //   0  — спавним ВСЕХ доступных спектаторов (рекомендуемое поведение);
+                //   N  — спавним максимум N (для ограниченных тестов / маленьких волн).
+                // Дефолт = 0 (все). Прежний дефолт «5 макс.» создавал ощущение,
+                // что отряд кривой при 7+ спектаторах в режиме ожидания.
+                int rawSize = FermixCore.Config?.GocManualWaveSize ?? 0;
                 var spectators = Player.List
                     .Where(p => p != null && p.IsConnected
                              && (p.Role?.Type == RoleTypeId.Spectator
                                  || p.Role?.Type == RoleTypeId.Overwatch
                                  || p.Role?.Type == RoleTypeId.None))
-                    .Take(desired)
                     .ToList();
+
+                if (rawSize > 0 && spectators.Count > rawSize)
+                    spectators = spectators.GetRange(0, rawSize);
 
                 if (spectators.Count == 0)
                 {
@@ -548,17 +555,20 @@ namespace FermixAPI.Systems
             bool tgtGoc = IsMember(ev.Player);
             if (!atkGoc && !tgtGoc) return;
 
-            // GOC vs GOC — friendly fire выключен (свои не стреляют по своим,
-            // даже если базовая роль Tutorial у игры считается «никем»).
+            // GOC vs GOC — запрещаем friendly fire внутри отряда G.O.C.
             if (atkGoc && tgtGoc)
             {
                 ev.IsAllowed = false;
                 return;
             }
 
-            // GOC ⇄ кто угодно (MTF, Chaos, SCP, D-class) — урон проходит.
-            // Игра по дефолту вокруг Tutorial-роли может вести себя странно
-            // (не считать урон), поэтому форсим разрешение.
+            // GOC ⇄ кто угодно (MTF, Chaos, SCP, D-class) — урон обязан
+            // проходить. Базовая роль члена G.O.C. — Tutorial, и ванильная
+            // FF-матрица не пропускает урон ни в одну, ни в другую сторону
+            // (Tutorial считается «нейтральным наблюдателем»). Без этого
+            // override SCP не может бить ваве-спавн, и ваве-спавн не может
+            // отстреливаться. Поэтому ТОЛЬКО для пар, где задействован GOC,
+            // мы форсим IsAllowed = true.
             ev.IsAllowed = true;
         }
     }

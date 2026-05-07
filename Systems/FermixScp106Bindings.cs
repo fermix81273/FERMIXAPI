@@ -68,6 +68,7 @@ namespace FermixAPI.Systems
                     header,
                     "Открыть портал к ближайшему живому игроку-человеку в радиусе 100 метров."));
 
+                FermixInput.DropExistingByIds(new[] { Scp106HeaderId, Scp106PortalKeyId });
                 SettingBase.Register(_ownSettings);
             }
             catch (Exception ex)

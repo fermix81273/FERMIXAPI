@@ -1,42 +1,26 @@
 using System.Collections.Generic;
-using System.Linq;
 using Exiled.API.Enums;
 using Exiled.API.Features;
 using FermixAPI.Core;
+using FermixAPI.Systems;
 using UnityEngine;
 
 namespace FermixAPI.FermixCoin.Outcomes
 {
-    /// <summary>Категория C: телепортация. Имбовые варианты — с пониженным шансом.</summary>
+    /// <summary>
+    /// Категория C: телепортация. Имбовые варианты — с пониженным шансом.
+    /// Логика выбора целей портирована из <c>Hazbin.Teleports</c>:
+    /// валидные комнаты и игроки берутся из allow-листов
+    /// <see cref="FermixTeleportRegistry"/>, который сам убирает невалидные
+    /// цели на ключевых событиях раунда (декон LCZ, старт БГ, смена роли,
+    /// дисконнект). Это и есть та самая «избегаемая ненужная телепортация»,
+    /// о которой просил пользователь — например, исход «случайная комната»
+    /// после старта БГ выкинет на Surface, а не в HCZ под обстрел.
+    /// Никаких отсчётов и шансов «не твой день» — это поведение взято из
+    /// <c>BetterCoins.TeleportChance</c>, и пользователь явно от него отказался.
+    /// </summary>
     public static class TeleportOutcomes
     {
-        private static readonly RoomType[] AllowedRooms =
-        {
-            RoomType.Hcz049,
-            RoomType.Hcz079,
-            RoomType.Hcz096,
-            RoomType.Hcz106,
-            RoomType.Hcz939,
-            RoomType.HczHid,
-            RoomType.Lcz173,
-            RoomType.Hcz127,
-            RoomType.Lcz914,
-            RoomType.Lcz330,
-            RoomType.HczArmory,
-            RoomType.LczArmory,
-            RoomType.HczEzCheckpointA,
-            RoomType.HczEzCheckpointB,
-            RoomType.LczCheckpointA,
-            RoomType.LczCheckpointB,
-            RoomType.LczToilets,
-            RoomType.EzIntercom,
-            RoomType.EzGateA,
-            RoomType.EzGateB,
-            RoomType.EzShelter,
-            RoomType.Surface,
-            RoomType.HczNuke,
-        };
-
         private const float SafeUpOffset = 1.0f;
 
         public static void Register(List<Outcome> sink)
@@ -49,9 +33,8 @@ namespace FermixAPI.FermixCoin.Outcomes
                 comment: "Найди дорогу обратно. Или не находи, я не настаиваю.",
                 action: p =>
                 {
-                    var room = PickAllowedRoom();
-                    if (room == null)
-                        return;
+                    var room = FermixTeleportRegistry.RandomRoom(ignorePocket: true);
+                    if (room == null) return;
                     p.Teleport(room.Position + Vector3.up * SafeUpOffset);
                 }));
 
@@ -64,11 +47,9 @@ namespace FermixAPI.FermixCoin.Outcomes
                 weightMultiplier: 0.4f,
                 action: p =>
                 {
-                    var others = Player.List.Where(x => x.IsAlive && x != p && x.IsConnected).ToList();
-                    if (others.Count == 0)
-                        return;
-                    var target = others[UnityEngine.Random.Range(0, others.Count)];
-                    p.Teleport(target.Position + Vector3.up * SafeUpOffset);
+                    var dest = FermixTeleportRegistry.RandomPlayer(except: p);
+                    if (dest == null) return;
+                    p.Teleport(dest.Position + Vector3.up * SafeUpOffset);
                 }));
 
             sink.Add(new Outcome(
@@ -109,22 +90,6 @@ namespace FermixAPI.FermixCoin.Outcomes
                     if (surface != null)
                         p.Teleport(surface.Position + Vector3.up * SafeUpOffset);
                 }));
-        }
-
-        private static Room PickAllowedRoom()
-        {
-            var pool = new List<Room>();
-            foreach (var rt in AllowedRooms)
-            {
-                var room = Room.Get(rt);
-                if (room != null)
-                    pool.Add(room);
-            }
-
-            if (pool.Count == 0)
-                return Room.Random();
-
-            return pool[UnityEngine.Random.Range(0, pool.Count)];
         }
     }
 }

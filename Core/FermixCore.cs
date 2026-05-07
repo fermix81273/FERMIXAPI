@@ -22,7 +22,7 @@ namespace FermixAPI.Core
 
         public const int VersionMajor = 2;
         public const int VersionMinor = 6;
-        public const int VersionPatch = 0;
+        public const int VersionPatch = 6;
         public const string VersionSuffix = "release";
 
         /// <summary>
@@ -147,10 +147,17 @@ namespace FermixAPI.Core
                 SafeInit("FermixGeneratorHud",         Systems.FermixGeneratorHud.Initialize);
                 SafeInit("FermixScramble",             Systems.FermixScramble.Initialize);
                 SafeInit("FermixNvg",                  Systems.FermixNvg.Initialize);
+                SafeInit("FermixCustomItemHints",      Systems.FermixCustomItemHints.Initialize);
                 SafeInit("FermixCallvote",             Systems.FermixCallvote.Initialize);
                 SafeInit("FermixGoc",                  Systems.FermixGoc.Initialize);
                 SafeInit("FermixSquadClasses",         Systems.FermixSquadClasses.Initialize);
                 SafeInit("FermixScp106Bindings",       Systems.FermixScp106Bindings.Initialize);
+
+                SafeInit("FermixInfinity",             Systems.FermixInfinity.Initialize);
+                SafeInit("FermixHitmarkers",           Systems.FermixHitmarkers.Initialize);
+                SafeInit("FermixPlayerXp",             Systems.FermixPlayerXp.Initialize);
+                SafeInit("FermixScpSwap",              Systems.FermixScpSwap.Initialize);
+                SafeInit("FermixTeleportRegistry",     Systems.FermixTeleportRegistry.Initialize);
 
                 SafeInit("TpsCommand monitor",         Commands.TpsCommand.StartMonitor);
                 SafeInit("RoundStart hook",            () => FermixEvents.OnRoundStart += OnRoundStartedHook);
@@ -209,6 +216,12 @@ namespace FermixAPI.Core
             SafeShutdown("FermixEvents.Unregister", FermixEvents.Unregister);
             SafeShutdown("RoundStart hook",        () => FermixEvents.OnRoundStart -= OnRoundStartedHook);
             SafeShutdown("TpsCommand monitor",     Commands.TpsCommand.StopMonitor);
+
+            SafeShutdown("FermixTeleportRegistry", Systems.FermixTeleportRegistry.Shutdown);
+            SafeShutdown("FermixScpSwap",          Systems.FermixScpSwap.Shutdown);
+            SafeShutdown("FermixPlayerXp",         Systems.FermixPlayerXp.Shutdown);
+            SafeShutdown("FermixHitmarkers",       Systems.FermixHitmarkers.Shutdown);
+            SafeShutdown("FermixInfinity",         Systems.FermixInfinity.Shutdown);
 
             SafeShutdown("FermixScp106Bindings",   Systems.FermixScp106Bindings.Shutdown);
             SafeShutdown("FermixSquadClasses",     Systems.FermixSquadClasses.Shutdown);
