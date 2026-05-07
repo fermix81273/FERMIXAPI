@@ -70,6 +70,9 @@ namespace FermixAPI.Utils
         {
             Initialize();
             var path = GetConfigPath(fileName);
+            var parent = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                Directory.CreateDirectory(parent);
             
             try
             {

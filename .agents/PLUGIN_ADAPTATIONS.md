@@ -253,6 +253,36 @@ SCP:SL плагинов в `FermixAPI.dll`. Каждый пункт — отде
 
 ---
 
+---
+
+## Раскладка конфигов по подпапкам (v2.6.5+)
+
+С v2.6.5 в FermixAPI добавлен **`Systems/FermixConfigSplit`** — он на старте
+плагина автоматически раскладывает поля основного `Fermix-API.yml` по
+подпапкам внутри `EXILED/Configs/<port>/FermixAPI/`:
+
+| Папка | Файл | Что внутри |
+|-------|------|-----------|
+| `Coin/` | `coin.yml` | FermixCoin, авто-спавн монеток, мега-джекпот |
+| `Items/` | `nvg.yml`, `scramble.yml`, `remote-keycard.yml` | NVG, SCP-1344-глушитель, Remote-карты |
+| `Chat/` | `chat.yml` | FermixChat |
+| `Hud/` | `generator.yml` | HUD генераторов 079 |
+| `Callvote/` | `callvote.yml` | Голосования |
+| `Scp106/` | `scp106.yml` | FermixScp106Plus + биндинги |
+| `Goc/` | `goc.yml` | G.O.C.-фракция |
+| `Roles/` | `squad-classes.yml` | FermixSquadClasses (Медик/Джагг/Командир/Стрелок) |
+| `Xp/` | `xp.yml`, `levels.yml` | FermixPlayerXp вкл/выкл + сетка уровней |
+| `NoRules/` | `infinity.yml`, `hitmarkers.yml`, `scp-swap.yml` | Бесконечные припасы, хитмаркеры, .swap |
+
+**Поведение:**
+- При первом запуске после v2.6.5 — sub-файлы создаются из текущих значений `Fermix-API.yml`.
+- При следующих запусках — sub-файлы **переопределяют** соответствующие поля основного конфига.
+- Удалить sub-файл = откатиться к значению из `Fermix-API.yml`.
+- Чтобы добавить новый раздел — отредактировать массив `Sections` в `FermixConfigSplit.cs` (folder + filename + список property-имён из Config.cs).
+- Уровни опыта (FermixPlayerXp) лежат отдельным конфигом `Xp/levels.yml` — это не sub-mirror, а полноценная конфигурация, подгружаемая через `FermixConfigUtils.Load<FermixLevelsConfig>("Xp/levels")`.
+
+---
+
 ## История адаптаций
 
 _Обновляется при каждом релизе адаптированного плагина._

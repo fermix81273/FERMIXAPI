@@ -17,7 +17,7 @@ namespace FermixAPI.Systems
     /// Hazbin.NoRules.PlayerXp с подгонкой под архитектуру FermixAPI:
     /// • опыт хранится через <see cref="PlayerDataStore{T}"/> в JSON
     ///   (директория <c>Configs/FermixAPI/Data/</c>);
-    /// • уровни лежат отдельным YAML <c>FermixAPI/levels.yml</c>
+    /// • уровни лежат отдельным YAML <c>FermixAPI/Xp/levels.yml</c>
     ///   (см. <see cref="FermixLevelsConfig"/>) — отдельно от основного
     ///   конфига плагина, как просил пользователь;
     /// • хинты идут через <see cref="FermixHint"/>, чтобы не конфликтовать
@@ -49,7 +49,7 @@ namespace FermixAPI.Systems
             if (_initialized || FermixCore.Config?.PlayerXpEnabled != true) return;
 
             _store = new PlayerDataStore<PlayerXpData>("playerxp");
-            _levels = FermixConfigUtils.Load<FermixLevelsConfig>("levels");
+            _levels = FermixConfigUtils.Load<FermixLevelsConfig>("Xp/levels");
             SortLevels();
 
             FermixEvents.OnPlayerJoin += OnJoined;
