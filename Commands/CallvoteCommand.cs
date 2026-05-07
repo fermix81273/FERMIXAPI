@@ -5,17 +5,26 @@ using FermixAPI.Systems;
 
 namespace FermixAPI.Commands
 {
-    [CommandHandler(typeof(ClientCommandHandler))]
+    /// <summary>
+    /// Только для админов. Выставлено в <c>RemoteAdminCommandHandler</c>:
+    /// SCP:SL сам отдаёт RA-консоль только пользователям с RA-доступом, поэтому
+    /// дополнительный permission-check здесь не нужен. Игроки голосуют через
+    /// <see cref="VoteCommand"/> (.vote yes/no), но саму инициацию голосования
+    /// теперь может только админ.
+    /// </summary>
+    [CommandHandler(typeof(RemoteAdminCommandHandler))]
     public sealed class CallvoteCommand : ICommand
     {
         public string Command => "callvote";
-        public string[] Aliases => new[] { "cv" };
-        public string Description => "Начать голосование: .cv <kick|restart|ask> [имя/вопрос] [причина]";
+        public string[] Aliases => new[] { "cv", "fcallvote" };
+        public string Description => "[ADMIN] Начать голосование: callvote <kick|restart|ask> [имя/вопрос] [причина]";
 
         public bool Execute(ArraySegment<string> arguments, ICommandSender sender, out string response)
         {
+            // Игрок-инициатор: если RA-команду пускает админ-игрок — берём его,
+            // иначе (например, серверная консоль) author = null. FermixCallvote
+            // умеет работать с author=null (Kick тогда требует target по имени).
             Player p = Player.Get(sender);
-            if (p == null) { response = "Только для игроков."; return false; }
             if (arguments.Count < 1) { response = Description; return false; }
 
             string sub = arguments.Array[arguments.Offset].ToLowerInvariant();

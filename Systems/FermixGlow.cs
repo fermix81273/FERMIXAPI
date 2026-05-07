@@ -387,9 +387,16 @@ namespace FermixAPI.Systems
             float hue = 0f;
             while (_configs.ContainsKey(configId))
             {
-                hue = (hue + 0.01f) % 1f;
-                if (_configs.TryGetValue(configId, out var cfg))
-                    cfg.Color = Color.HSVToRGB(hue, 1f, 1f);
+                try
+                {
+                    hue = (hue + 0.01f) % 1f;
+                    if (_configs.TryGetValue(configId, out var cfg))
+                        cfg.Color = Color.HSVToRGB(hue, 1f, 1f);
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Error($"FermixGlow.RainbowCoroutine: {ex}");
+                }
 
                 yield return Timing.WaitForSeconds(0.05f);
             }

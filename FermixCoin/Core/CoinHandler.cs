@@ -18,76 +18,97 @@ namespace FermixAPI.FermixCoin
     {
         public void OnPickingUpItem(PickingUpItemEventArgs ev)
         {
-            if (!ev.IsAllowed || ev.Pickup == null)
-                return;
-
-            if (ev.Pickup.Type != ItemType.Coin)
-                return;
-
-            var states = CoinManager.CoinStates;
-            if (!states.ContainsKey(ev.Pickup.Serial))
+            try
             {
-                var maxUses = UnityEngine.Random.Range(1, FermixCore.Config.CoinMaxUses + 1);
-                states[ev.Pickup.Serial] = new CoinState
+                if (ev == null || !ev.IsAllowed || ev.Pickup == null)
+                    return;
+
+                if (ev.Pickup.Type != ItemType.Coin)
+                    return;
+
+                var states = CoinManager.CoinStates;
+                if (!states.ContainsKey(ev.Pickup.Serial))
                 {
-                    Uses = 0,
-                    MaxUses = maxUses,
-                    NextOutcome = OutcomeRegistry.RollOne(),
-                };
+                    var maxUses = UnityEngine.Random.Range(1, FermixCore.Config.CoinMaxUses + 1);
+                    states[ev.Pickup.Serial] = new CoinState
+                    {
+                        Uses = 0,
+                        MaxUses = maxUses,
+                        NextOutcome = OutcomeRegistry.RollOne(),
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[FermixCoin] OnPickingUpItem упал: {ex}");
             }
         }
 
         public void OnFlippingCoin(FlippingCoinEventArgs ev)
         {
-            if (!ev.IsAllowed || ev.Player == null || ev.Item == null)
-                return;
-
-            var states = CoinManager.CoinStates;
-            var serial = ev.Item.Serial;
-
-            if (!states.TryGetValue(serial, out var state))
-            {
-                state = new CoinState
-                {
-                    Uses = 0,
-                    MaxUses = UnityEngine.Random.Range(1, FermixCore.Config.CoinMaxUses + 1),
-                    NextOutcome = OutcomeRegistry.RollOne(),
-                };
-                states[serial] = state;
-            }
-
-            state.Uses++;
-
-            var rng = UnityEngine.Random.value;
-            bool isMega = rng < (float)FermixCore.Config.MegaJackpotChance;
-
             try
             {
-                if (isMega)
-                    ApplyMegaJackpot(ev.Player);
+                if (ev == null || !ev.IsAllowed || ev.Player == null || ev.Item == null)
+                    return;
+
+                var states = CoinManager.CoinStates;
+                var serial = ev.Item.Serial;
+
+                if (!states.TryGetValue(serial, out var state))
+                {
+                    state = new CoinState
+                    {
+                        Uses = 0,
+                        MaxUses = UnityEngine.Random.Range(1, FermixCore.Config.CoinMaxUses + 1),
+                        NextOutcome = OutcomeRegistry.RollOne(),
+                    };
+                    states[serial] = state;
+                }
+
+                state.Uses++;
+
+                var rng = UnityEngine.Random.value;
+                bool isMega = rng < (float)FermixCore.Config.MegaJackpotChance;
+
+                try
+                {
+                    if (isMega)
+                        ApplyMegaJackpot(ev.Player);
+                    else
+                        ApplyOutcome(ev.Player, state.NextOutcome);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[FermixCoin] исход '{state.NextOutcome?.Id}' упал: {ex}");
+                }
+
+                if (state.Uses >= state.MaxUses)
+                {
+                    ev.Player.RemoveItem(ev.Item);
+                    states.Remove(serial);
+                    FermixHint.Send(ev.Player, "<color=#888888>Монетка рассыпалась в труху...</color>", 4f);
+                }
                 else
-                    ApplyOutcome(ev.Player, state.NextOutcome);
+                {
+                    state.NextOutcome = OutcomeRegistry.RollOne();
+                }
             }
             catch (Exception ex)
             {
-                Log.Error($"[FermixCoin] исход '{state.NextOutcome?.Id}' упал: {ex}");
-            }
-
-            if (state.Uses >= state.MaxUses)
-            {
-                ev.Player.RemoveItem(ev.Item);
-                states.Remove(serial);
-                FermixHint.Send(ev.Player, "<color=#888888>Монетка рассыпалась в труху...</color>", 4f);
-            }
-            else
-            {
-                state.NextOutcome = OutcomeRegistry.RollOne();
+                Log.Error($"[FermixCoin] OnFlippingCoin упал: {ex}");
             }
         }
 
         public void OnRestartingRound()
         {
-            CoinManager.CoinStates.Clear();
+            try
+            {
+                CoinManager.CoinStates.Clear();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[FermixCoin] OnRestartingRound: {ex.Message}");
+            }
         }
 
         private static void ApplyOutcome(PlayerApi player, Outcome outcome)

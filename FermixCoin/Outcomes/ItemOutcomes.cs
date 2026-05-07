@@ -22,6 +22,18 @@ namespace FermixAPI.FermixCoin.Outcomes
             ItemType.Ammo9x19,
         };
 
+        // Отдельный пул «пушек» для исхода A5 — выпадает чуть чаще обычной
+        // монетки, чтобы оружие падало регулярно но не доминировало в раунде.
+        private static readonly ItemType[] WeaponPool =
+        {
+            ItemType.GunCOM15,
+            ItemType.GunCOM18,
+            ItemType.GunFSP9,
+            ItemType.GunCrossvec,
+            ItemType.GunRevolver,
+            ItemType.GunE11SR,
+        };
+
         private static readonly (EffectType type, float duration, byte intensity, string label)[] BasicEffectPool =
         {
             (EffectType.MovementBoost, 15f, 10, "ускорение"),
@@ -101,6 +113,23 @@ namespace FermixAPI.FermixCoin.Outcomes
                     var t = ScpItemPool[UnityEngine.Random.Range(0, ScpItemPool.Length)];
                     p.AddItem(t);
                 }));
+
+            // A5 — гарантированная пушка из расширенного пула.
+            // Rarity.Common (50) + WeightMultiplier 1.4 → итоговый вес ~70.
+            // Это чуть выше «случайного предмета» (50) и заметно выше
+            // «случайного эффекта» (50), чтобы оружие падало регулярно.
+            sink.Add(new Outcome(
+                id: "A5",
+                name: "Пушка",
+                rarity: Rarity.Common,
+                message: "Монетка выкатила тебе оружие!",
+                comment: "Не пали по своим. По чужим — на здоровье.",
+                action: p =>
+                {
+                    var t = WeaponPool[UnityEngine.Random.Range(0, WeaponPool.Length)];
+                    p.AddItem(t);
+                },
+                weightMultiplier: 1.4f));
         }
 
         private static void Hint(Player p, string text)

@@ -6,25 +6,47 @@ using Exiled.API.Enums;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
 using FermixAPI.Core;
+using FermixAPI.Hints.Core.Enum;
+using FermixAPI.Hints.Core.Utilities;
+using MEC;
+using HsmHint = FermixAPI.Hints.Core.Models.Hints.Hint;
 
 namespace FermixAPI.Systems
 {
     /// <summary>
     /// Глобальный текстовый чат через консольную команду <c>.say</c>. Сообщения
-    /// собираются в общий ring-буфер и отображаются всем живым игрокам в одном
-    /// persistent-хинте через <see cref="FermixHintStack"/>. Таймстамп-фильтрация
-    /// убирает старые строки сама. Включается флагом <c>ChatEnabled</c>.
+    /// собираются в общий ring-буфер. В отличие от остальных подсистем,
+    /// FermixChat использует СВОЙ собственный HsmHint в верхнем правом углу
+    /// экрана (через прямой <see cref="PlayerDisplay"/>, в обход
+    /// <see cref="FermixHintStack"/>), чтобы не наслаиваться поверх других
+    /// хинтов посередине экрана. Включается флагом <c>ChatEnabled</c>.
     /// </summary>
     public static class FermixChat
     {
-        private const string HintId = "fermix_chat";
         private const string TagStripPattern = "<[^>]+>";
+        private const string HsmGroupName = "FermixAPI.Chat";
+
+        // Координаты чата — верхний правый угол, в пикселях экрана 1920x1080:
+        //   YCoordinate = 100 + YCoordinateAlign.Top → строка начинается в 100px
+        //                 ниже верхнего края (с запасом, чтобы не залезть под
+        //                 capture-/raid-/round-info оверлеи игры).
+        //   XCoordinate = -40 + Alignment.Right → правый край текста на 40px
+        //                 левее правого края экрана (комфортный padding).
+        //   FontSize    = 18 — компактнее центральных хинтов, чтобы не
+        //                 загораживать обзор.
+        private const float ChatYCoordinate = 100f;
+        private const float ChatXCoordinate = -40f;
+        private const int ChatFontSize = 18;
+        private const float ChatTickInterval = 1f;
+
         private static readonly Regex _tagStrip = new(TagStripPattern, RegexOptions.Compiled);
 
         private static readonly object _lock = new();
         private static readonly LinkedList<ChatLine> _buffer = new();
         private static readonly Dictionary<string, DateTime> _lastSent = new(StringComparer.Ordinal);
+        private static readonly Dictionary<Player, HsmHint> _chatHints = new();
 
+        private static CoroutineHandle _tickHandle;
         private static bool _initialized;
 
         /// <summary>Подписаться на нужные события и подготовить буфер.</summary>
@@ -37,8 +59,15 @@ namespace FermixAPI.Systems
             FermixEvents.OnPlayerJoin += OnPlayerJoined;
             FermixEvents.OnPlayerLeave += OnPlayerLeft;
 
-            foreach (Player p in Player.List)
-                AttachHint(p);
+            // ВАЖНО: НЕ привязываем chat-хинт к уже подключённым игрокам прямо
+            // здесь. Initialize вызывается из FermixCore при включении плагина,
+            // когда живых игроков обычно ещё нет. Но если плагин перезагружают
+            // на лету (reload), мы могли бы триггернуть создание PlayerDisplay
+            // на полузапущенном Mirror'овском NetworkConnection и сломать
+            // network pipeline. Хинты доцепятся при первом Player.Joined +
+            // через FermixScheduler.Delay (см. OnPlayerJoined ниже).
+
+            _tickHandle = FermixCore.RunCoroutine(TextUpdateLoop(), "FermixChat.TextUpdateLoop");
 
             _initialized = true;
         }
@@ -52,11 +81,15 @@ namespace FermixAPI.Systems
             FermixEvents.OnPlayerJoin -= OnPlayerJoined;
             FermixEvents.OnPlayerLeave -= OnPlayerLeft;
 
-            foreach (Player p in Player.List)
-                FermixHintStack.RemoveHint(p, HintId);
+            if (_tickHandle.IsValid) Timing.KillCoroutines(_tickHandle);
 
             lock (_lock)
             {
+                foreach (var kv in _chatHints)
+                {
+                    DetachHintInternal(kv.Key, kv.Value);
+                }
+                _chatHints.Clear();
                 _buffer.Clear();
                 _lastSent.Clear();
             }
@@ -126,6 +159,10 @@ namespace FermixAPI.Systems
                     _buffer.RemoveFirst();
             }
 
+            // Сразу прокидываем апдейт ко всем активным чат-хинтам, чтобы новое
+            // сообщение появилось без задержки тикера (~1с).
+            PushTextToAllHints();
+
             FermixLog.Info($"[CHAT] {author.Nickname}: {sanitized}");
             return true;
         }
@@ -137,35 +174,169 @@ namespace FermixAPI.Systems
                 _buffer.Clear();
                 _lastSent.Clear();
             }
+            PushTextToAllHints();
         }
 
         private static void OnPlayerJoined(JoinedEventArgs ev)
         {
             if (ev?.Player == null) return;
-            AttachHint(ev.Player);
+
+            // КРИТИЧНО: ДО версии 2.5.5 здесь сразу шёл AttachHint(ev.Player),
+            // и это ломало подключение игрокам. Handlers.Player.Joined в
+            // EXILED 9.13.3 фаерится ПО ХОДУ инициализации player'а
+            // (Mirror всё ещё досоздаёт NetworkBehaviour'ы на GameObject
+            // игрока). Создание PlayerDisplay в Hints-движке запускает
+            // фоновый PeriodicRunner (Task.Run), который начинает диспатчить
+            // hint-сообщения через connectionToClient.Send из ThreadPool-треда.
+            // Mirror NetworkConnection.Send НЕ thread-safe, и параллельный
+            // Send во время инициализации связи с клиентом приводит к
+            // рассинхронизации NetworkBehaviour'ов: RemoteAdmin.QueryProcessor
+            // не успевает доустановить _playerId, после чего Mirror сносит
+            // игрока, и QueryProcessor.OnDestroy падает с NRE при попытке
+            // удалить null-ключ из ConcurrentDictionary. Игрока выкидывает
+            // с пустым ником через ~6 секунд после preauth.
+            //
+            // Фикс: откладываем AttachHint на 5 секунд через FermixScheduler.
+            // К этому моменту Mirror гарантированно достроит player.
+            var player = ev.Player;
+            FermixScheduler.Delay(5f, () =>
+            {
+                try
+                {
+                    if (player == null || !player.IsConnected) return;
+                    AttachHint(player);
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Warn($"FermixChat: deferred AttachHint failed for {player?.Nickname}: {ex.Message}");
+                }
+            });
         }
 
         private static void OnPlayerLeft(LeftEventArgs ev)
         {
             if (ev?.Player == null) return;
-            FermixHintStack.RemoveHint(ev.Player, HintId);
-            string key = ev.Player.UserId ?? ev.Player.Nickname;
-            if (key == null) return;
-            lock (_lock) _lastSent.Remove(key);
+
+            HsmHint hint = null;
+            lock (_lock)
+            {
+                if (_chatHints.TryGetValue(ev.Player, out hint))
+                    _chatHints.Remove(ev.Player);
+
+                string key = ev.Player.UserId ?? ev.Player.Nickname;
+                if (key != null) _lastSent.Remove(key);
+            }
+
+            if (hint != null) DetachHintInternal(ev.Player, hint);
         }
 
         private static void AttachHint(Player player)
         {
-            if (player == null) return;
-            FermixHintStack.ShowPersistentDynamicHint(
-                player,
-                _ => RenderForPlayer(),
-                HintId,
-                updateInterval: 1f,
-                priority: -50,
-                category: HintCategory.Custom,
-                color: FermixHint.White,
-                showBullet: false);
+            if (player == null || player.ReferenceHub == null) return;
+
+            HsmHint hint;
+            lock (_lock)
+            {
+                if (_chatHints.ContainsKey(player)) return;
+
+                // Создаём собственный HsmHint, прикрепляемый к PlayerDisplay
+                // напрямую (а не через FermixHintStack). Ставим его в верхний
+                // правый угол. FermixHintStack продолжает рулить хинтами
+                // в центре экрана и вообще не знает про этот объект.
+                hint = new HsmHint
+                {
+                    YCoordinate = ChatYCoordinate,
+                    XCoordinate = ChatXCoordinate,
+                    Alignment = HintAlignment.Right,
+                    YCoordinateAlign = HintVerticalAlign.Top,
+                    SyncSpeed = HintSyncSpeed.Normal,
+                    FontSize = ChatFontSize,
+                    Text = RenderForPlayer(),
+                };
+
+                _chatHints[player] = hint;
+            }
+
+            try
+            {
+                PlayerDisplay.Get(player.ReferenceHub).AddHint(hint, HsmGroupName);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixChat.AttachHint: {ex.Message}");
+                lock (_lock) _chatHints.Remove(player);
+            }
+        }
+
+        private static void DetachHintInternal(Player player, HsmHint hint)
+        {
+            if (player == null || hint == null) return;
+            try
+            {
+                if (player.ReferenceHub != null)
+                    PlayerDisplay.Get(player.ReferenceHub).RemoveHint(hint, HsmGroupName);
+            }
+            catch (Exception ex)
+            {
+                FermixLog.Warn($"FermixChat.DetachHint: {ex.Message}");
+            }
+        }
+
+        private static IEnumerator<float> TextUpdateLoop()
+        {
+            while (true)
+            {
+                yield return Timing.WaitForSeconds(ChatTickInterval);
+
+                try
+                {
+                    PushTextToAllHints();
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Warn($"FermixChat.TextUpdateLoop: {ex.Message}");
+                }
+            }
+        }
+
+        private static void PushTextToAllHints()
+        {
+            string rendered = RenderForPlayer();
+
+            // Снимаем snapshot пар (Player, HsmHint), чтобы не держать lock
+            // во время обращения к PlayerDisplay/Text (внешние сеттеры могут
+            // тригернуть update-цепочку).
+            List<KeyValuePair<Player, HsmHint>> snapshot;
+            lock (_lock)
+            {
+                snapshot = new List<KeyValuePair<Player, HsmHint>>(_chatHints);
+            }
+
+            foreach (var kv in snapshot)
+            {
+                var player = kv.Key;
+                var hint = kv.Value;
+                if (hint == null) continue;
+                if (player == null || !player.IsConnected) continue;
+
+                try
+                {
+                    if (string.IsNullOrEmpty(rendered))
+                    {
+                        if (!hint.Hide) hint.Hide = true;
+                        hint.Text = string.Empty;
+                    }
+                    else
+                    {
+                        hint.Text = rendered;
+                        if (hint.Hide) hint.Hide = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Warn($"FermixChat: text push failed for {player?.Nickname}: {ex.Message}");
+                }
+            }
         }
 
         private static string RenderForPlayer()
@@ -179,7 +350,7 @@ namespace FermixAPI.Systems
                 foreach (var line in _buffer)
                 {
                     if ((now - line.Created).TotalSeconds > lifetime) continue;
-                    sb.Append("<size=20><color=").Append(line.AuthorColor).Append('>')
+                    sb.Append("<size=").Append(ChatFontSize).Append("><color=").Append(line.AuthorColor).Append('>')
                       .Append(line.Author).Append("</color>: ")
                       .Append(line.Text).Append("</size>\n");
                 }

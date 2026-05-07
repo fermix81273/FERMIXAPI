@@ -240,8 +240,23 @@ namespace FermixAPI.Core
         {
             float elapsed = 0f;
 
-            while (!condition())
+            while (true)
             {
+                bool done;
+                try
+                {
+                    done = condition?.Invoke() == true;
+                }
+                catch (Exception ex)
+                {
+                    // Не валим всю корутину — пользователь мог положить в условие
+                    // обращение к Player, который уже отвалился. Просто завершаем.
+                    FermixLog.Exception(ex, "WaitUntil Condition");
+                    yield break;
+                }
+
+                if (done) break;
+
                 yield return Timing.WaitForSeconds(checkInterval);
                 elapsed += checkInterval;
 
@@ -272,8 +287,23 @@ namespace FermixAPI.Core
 
         private static IEnumerator<float> WhileCoroutine(Func<bool> condition, Action action, float interval)
         {
-            while (condition())
+            while (true)
             {
+                bool keep;
+                try
+                {
+                    keep = condition?.Invoke() == true;
+                }
+                catch (Exception ex)
+                {
+                    // Условие швырнуло — завершаем корутину штатно вместо
+                    // тихой гибели в MEC.
+                    FermixLog.Exception(ex, "While Condition");
+                    yield break;
+                }
+
+                if (!keep) yield break;
+
                 try
                 {
                     action?.Invoke();

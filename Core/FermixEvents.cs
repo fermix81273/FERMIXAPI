@@ -33,16 +33,42 @@ namespace FermixAPI.Core
         // обработчиков при Refresh() / hot-reload.
         private static readonly List<Action> _unsubscribers = new List<Action>();
 
+        // Каждый бридж между EXILED-евентом и нашим event'ом обёрнут в
+        // try/catch: иначе исключение в одном из подписчиков FermixEvents.*
+        // (например, FermixCallvote.Tick или CoinHandler.OnFlippingCoin)
+        // прервало бы весь multicast-chain и EXILED получил бы unhandled
+        // exception в своём pipeline, что у некоторых сборок ведёт к
+        // обрыву подключений.
         private static void Sub<T>(Event<T> ev, Action<T> invoker)
         {
-            CustomEventHandler<T> handler = e => invoker?.Invoke(e);
+            CustomEventHandler<T> handler = e =>
+            {
+                try
+                {
+                    invoker?.Invoke(e);
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Error($"FermixEvents<{typeof(T).Name}>: подписчик упал: {ex}");
+                }
+            };
             ev.Subscribe(handler);
             _unsubscribers.Add(() => ev.Unsubscribe(handler));
         }
 
         private static void Sub(Event ev, Action invoker)
         {
-            CustomEventHandler handler = () => invoker?.Invoke();
+            CustomEventHandler handler = () =>
+            {
+                try
+                {
+                    invoker?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    FermixLog.Error($"FermixEvents: подписчик упал: {ex}");
+                }
+            };
             ev.Subscribe(handler);
             _unsubscribers.Add(() => ev.Unsubscribe(handler));
         }

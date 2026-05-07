@@ -37,10 +37,12 @@ namespace FermixAPI.Commands
                     if (p == null) { response = "Игрок не найден."; return false; }
                     if (!p.IsAlive)
                     {
-                        try { p.Role.Set(RoleTypeId.NtfSergeant); }
+                        // Базово стартуем как Tutorial — это ожидаемая
+                        // базовая роль G.O.C. (см. FermixGoc).
+                        try { p.Role.Set(RoleTypeId.Tutorial); }
                         catch (Exception e) { response = $"Не удалось заспавнить: {e.Message}"; return false; }
                     }
-                    FermixGoc.Mark(p, announce: true);
+                    FermixGoc.Mark(p, rank: null, announce: true);
                     response = $"{p.Nickname} помечен как G.O.C.";
                     return true;
                 }
@@ -56,10 +58,15 @@ namespace FermixAPI.Commands
                 }
                 case "wave":
                 {
-                    var alive = Player.List.Where(pl => pl.Role?.Team == Team.FoundationForces && !FermixGoc.IsMember(pl)).ToList();
-                    if (alive.Count == 0) { response = "Нет живых MTF для конвертации."; return false; }
-                    foreach (var p in alive) FermixGoc.Mark(p, announce: true);
-                    response = $"Конвертировано {alive.Count} MTF в G.O.C.";
+                    int spawned = FermixGoc.TriggerWaveManual(out string err);
+                    if (spawned <= 0)
+                    {
+                        response = string.IsNullOrWhiteSpace(err)
+                            ? "Не удалось инициализировать волну G.O.C."
+                            : err;
+                        return false;
+                    }
+                    response = $"G.O.C.-волна инициирована: {spawned} оперативник(ов).";
                     return true;
                 }
                 default:
